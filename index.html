@@ -709,6 +709,69 @@
   }
 
   .mobile-only-hint { display: none; }
+  /* grid alignment guides — shown only while dragging/resizing a box, when
+     its edge lines up with the background grid */
+  #grid-guide-v, #grid-guide-h {
+    position: absolute;
+    background: #ffd400;
+    pointer-events: none;
+    z-index: 4;
+    display: none;
+    box-shadow: 0 0 5px rgba(255,212,0,.85);
+  }
+  #grid-guide-v { top: 0; bottom: 0; width: 2px; }
+  #grid-guide-h { left: 0; right: 0; height: 2px; }
+
+  /* custom modal (replaces native alert()/confirm() so the dialog matches
+     the app's theme and has a proper title instead of the browser's own) */
+  #modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  #modal-overlay.show { display: flex; }
+  #modal-box {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    min-width: 260px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 12px 40px rgba(0,0,0,.6);
+    overflow: hidden;
+  }
+  #modal-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  #modal-message { padding: 16px; font-size: 13px; color: var(--text); line-height: 1.5; }
+  #modal-actions { display: flex; gap: 8px; padding: 12px 16px 16px; }
+  #modal-actions button {
+    flex: 1;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+  }
+  #modal-actions button:hover { background: #2a2a2a; border-color: #555; }
+  #modal-actions button.primary { background: var(--accent); border-color: transparent; color: #fff; font-weight: 500; }
+  #modal-actions button.primary:hover { background: var(--accent-h); }
+  #modal-actions button.danger { background: var(--danger); border-color: transparent; color: #1a0505; font-weight: 700; }
+  #modal-actions button.danger:hover { background: #ff8080; }
 </style>
 </head>
 <body>
@@ -717,7 +780,7 @@
   <h1>Position Helper</h1>
   <div class="header-right">
     <span>Drag · resize · any origin · shapes</span>
-    <button class="reset-btn" onclick="resetAll()">
+    <button class="reset-btn" onclick="confirmReset()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/>
       </svg>
@@ -731,6 +794,8 @@
     <div id="canvas-label">854 × 480 px</div>
     <div id="game-window">
       <div id="origin-marker"></div>
+      <div id="grid-guide-v"></div>
+      <div id="grid-guide-h"></div>
     </div>
   </div>
 
@@ -893,6 +958,14 @@
 </div>
 
 <div id="toast"></div>
+
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div id="modal-title">Position Helper says</div>
+    <div id="modal-message"></div>
+    <div id="modal-actions"></div>
+  </div>
+</div>
 
 <!-- Custom right-click context menu for boxes -->
 <div id="ctx-menu">
@@ -1235,6 +1308,7 @@
     handle.addEventListener('pointerdown', e => startDrag(e, box));
     handle.addEventListener('dblclick', e => { e.stopPropagation(); startTextEdit(box); });
     handle.addEventListener('contextmenu', e => openCtxMenu(e, box));
+    div.addEventListener('pointerdown', e => startDrag(e, box));
     div.addEventListener('contextmenu', e => openCtxMenu(e, box));
     textEl.addEventListener('pointerdown', e => e.stopPropagation());
     textEl.addEventListener('contextmenu', e => openCtxMenu(e, box));
@@ -1501,7 +1575,7 @@
   // ── Snap ─────────────────────────────────────────────────────────────────
   function snapTo(pos) {
     const box = getSelectedBox();
-    if (!box) { alert('Create a box first.'); return; }
+    if (!box) { showAppAlert('Create a box first.'); return; }
     const cx = (winW - box.w) / 2;
     const cy = (winH - box.h) / 2;
     const map = {
@@ -1518,6 +1592,150 @@
     [box.x, box.y] = map[pos];
     renderBox(box); updateCoords();
     saveState();
+  }
+
+  // ── Custom modal (replaces native alert/confirm) ─────────────────────────
+  function showModal(message, buttons) {
+    document.getElementById('modal-message').textContent = message;
+    const actions = document.getElementById('modal-actions');
+    actions.innerHTML = '';
+    buttons.forEach(b => {
+      const btn = document.createElement('button');
+      btn.textContent = b.label;
+      if (b.primary) btn.classList.add('primary');
+      if (b.danger) btn.classList.add('danger');
+      btn.onclick = b.action;
+      actions.appendChild(btn);
+    });
+    document.getElementById('modal-overlay').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('show');
+  }
+
+  function showAppAlert(message) {
+    showModal(message, [{ label: 'OK', primary: true, action: closeModal }]);
+  }
+
+  function showAppConfirm(message, onConfirm) {
+    showModal(message, [
+      { label: 'Cancel', action: closeModal },
+      { label: 'Reset', danger: true, action: () => { closeModal(); onConfirm(); } }
+    ]);
+  }
+
+  document.getElementById('modal-overlay').addEventListener('pointerdown', e => {
+    if (e.target.id === 'modal-overlay') closeModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('modal-overlay').classList.contains('show')) closeModal();
+  });
+
+  function confirmReset() {
+    showAppConfirm('This will clear every box and setting back to defaults. Are you sure?', resetAll);
+  }
+
+  // ── Deselect when clicking empty canvas ─────────────────────────────────
+  function deselectBox() {
+    if (selectedId === null) return;
+    selectedId = null;
+    boxes.forEach(b => {
+      b.el.classList.remove('selected');
+      if (b.listRow) b.listRow.classList.remove('selected');
+      updateShapeStyle(b);
+    });
+    updateCoords();
+    saveState();
+  }
+
+  canvasArea.addEventListener('pointerdown', e => {
+    if (!e.target.closest('.drag-box')) {
+      deselectBox();
+    }
+  });
+
+  // ── Grid alignment guides + snapping (only while dragging/resizing) ─────
+  const GRID_SIZE = 40;
+  const GRID_SNAP_TOL = 6; // screen px
+
+  function snapDragToGrid(box) {
+    const gv = document.getElementById('grid-guide-v');
+    const gh = document.getElementById('grid-guide-h');
+
+    const leftPx = box.x * scale;
+    const nearestV = Math.round(leftPx / GRID_SIZE) * GRID_SIZE;
+    if (Math.abs(leftPx - nearestV) <= GRID_SNAP_TOL) {
+      box.x = nearestV / scale;
+      gv.style.left = nearestV + 'px';
+      gv.style.display = 'block';
+    } else {
+      gv.style.display = 'none';
+    }
+
+    const topPx = box.y * scale;
+    const nearestH = Math.round(topPx / GRID_SIZE) * GRID_SIZE;
+    if (Math.abs(topPx - nearestH) <= GRID_SNAP_TOL) {
+      box.y = nearestH / scale;
+      gh.style.top = nearestH + 'px';
+      gh.style.display = 'block';
+    } else {
+      gh.style.display = 'none';
+    }
+  }
+
+  // dims = { nx, ny, nw, nh }; dir = which handle is being dragged.
+  // Snaps whichever edge that handle controls, keeping the opposite edge
+  // fixed, and shows the matching yellow guide line.
+  function snapResizeToGrid(dims, dir) {
+    const gv = document.getElementById('grid-guide-v');
+    const gh = document.getElementById('grid-guide-h');
+    let vShown = false, hShown = false;
+
+    if (dir === 'ml' || dir === 'tl' || dir === 'bl') {
+      const leftPx = dims.nx * scale;
+      const nearest = Math.round(leftPx / GRID_SIZE) * GRID_SIZE;
+      if (Math.abs(leftPx - nearest) <= GRID_SNAP_TOL) {
+        const rightEdge = dims.nx + dims.nw;
+        dims.nx = nearest / scale;
+        dims.nw = rightEdge - dims.nx;
+        gv.style.left = nearest + 'px'; gv.style.display = 'block'; vShown = true;
+      }
+    }
+    if (dir === 'mr' || dir === 'tr' || dir === 'br') {
+      const rightPx = (dims.nx + dims.nw) * scale;
+      const nearest = Math.round(rightPx / GRID_SIZE) * GRID_SIZE;
+      if (Math.abs(rightPx - nearest) <= GRID_SNAP_TOL) {
+        dims.nw = nearest / scale - dims.nx;
+        gv.style.left = nearest + 'px'; gv.style.display = 'block'; vShown = true;
+      }
+    }
+    if (dir === 'tc' || dir === 'tl' || dir === 'tr') {
+      const topPx = dims.ny * scale;
+      const nearest = Math.round(topPx / GRID_SIZE) * GRID_SIZE;
+      if (Math.abs(topPx - nearest) <= GRID_SNAP_TOL) {
+        const bottomEdge = dims.ny + dims.nh;
+        dims.ny = nearest / scale;
+        dims.nh = bottomEdge - dims.ny;
+        gh.style.top = nearest + 'px'; gh.style.display = 'block'; hShown = true;
+      }
+    }
+    if (dir === 'bc' || dir === 'bl' || dir === 'br') {
+      const bottomPx = (dims.ny + dims.nh) * scale;
+      const nearest = Math.round(bottomPx / GRID_SIZE) * GRID_SIZE;
+      if (Math.abs(bottomPx - nearest) <= GRID_SNAP_TOL) {
+        dims.nh = nearest / scale - dims.ny;
+        gh.style.top = nearest + 'px'; gh.style.display = 'block'; hShown = true;
+      }
+    }
+
+    if (!vShown) gv.style.display = 'none';
+    if (!hShown) gh.style.display = 'none';
+  }
+
+  function hideGridGuides() {
+    document.getElementById('grid-guide-v').style.display = 'none';
+    document.getElementById('grid-guide-h').style.display = 'none';
   }
 
   // ── Drag (move) ───────────────────────────────────────────────────────────
@@ -1556,6 +1774,9 @@
       }
       box.x = Math.max(0, Math.min(ai.startBX + dx, winW - box.w));
       box.y = Math.max(0, Math.min(ai.startBY + dy, winH - box.h));
+      snapDragToGrid(box);
+      box.x = Math.max(0, Math.min(box.x, winW - box.w));
+      box.y = Math.max(0, Math.min(box.y, winH - box.h));
       renderBox(box); updateCoords();
       return;
     }
@@ -1582,6 +1803,10 @@
         nh = ai.startBH + dy;
         if (nh < MIN) nh = MIN;
       }
+
+      const dims = { nx, ny, nw, nh };
+      snapResizeToGrid(dims, d);
+      nx = dims.nx; ny = dims.ny; nw = dims.nw; nh = dims.nh;
 
       if (nx < 0)          { nw += nx; nx = 0; }
       if (ny < 0)          { nh += ny; ny = 0; }
@@ -1612,6 +1837,7 @@
           lastTapTime = now;
         }
       }
+      hideGridGuides();
       saveState();
     }
     activeInteraction = null;
