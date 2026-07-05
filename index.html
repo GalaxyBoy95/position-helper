@@ -1,0 +1,1859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Position Helper</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f0f0f'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%234f7fff' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%234f7fff'/%3E%3Cline x1='16' y1='2.5' x2='16' y2='8' stroke='%234f7fff' stroke-width='2.4' stroke-linecap='round'/%3E%3Cline x1='16' y1='24' x2='16' y2='29.5' stroke='%234f7fff' stroke-width='2.4' stroke-linecap='round'/%3E%3Cline x1='2.5' y1='16' x2='8' y2='16' stroke='%234f7fff' stroke-width='2.4' stroke-linecap='round'/%3E%3Cline x1='24' y1='16' x2='29.5' y2='16' stroke='%234f7fff' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0f0f0f;
+    --surface:  #1a1a1a;
+    --surface2: #222;
+    --border:   #2e2e2e;
+    --border2:  #3d3d3d;
+    --text:     #e8e8e8;
+    --muted:    #888;
+    --accent:   #4f7fff;
+    --accent-h: #6b92ff;
+    --success:  #3ecf8e;
+    --danger:   #ff6b6b;
+    --radius:   8px;
+    --mono:     'Cascadia Code','Fira Mono','Consolas',monospace;
+  }
+
+  html { scrollbar-width: thin; scrollbar-color: var(--border2) var(--surface); height: 100%; overflow: hidden; overscroll-behavior: none; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    height: 100%;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  /* ── custom scrollbars ─────────────────────────────────────────────────── */
+  #panel, #box-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) var(--surface2);
+  }
+  #panel::-webkit-scrollbar, #box-list::-webkit-scrollbar { width: 9px; height: 9px; }
+  #panel::-webkit-scrollbar-track, #box-list::-webkit-scrollbar-track { background: var(--surface); }
+  #panel::-webkit-scrollbar-thumb, #box-list::-webkit-scrollbar-thumb {
+    background: var(--border2);
+    border-radius: 8px;
+    border: 2px solid var(--surface);
+  }
+  #panel::-webkit-scrollbar-thumb:hover, #box-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  header {
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    background: var(--surface);
+  }
+  header h1 { font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing:.06em; text-transform:uppercase; flex-shrink: 0; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; flex-shrink: 0; min-width: 0; }
+  .header-right span { font-size: 11px; color: var(--muted); opacity:.6; white-space: nowrap; }
+  .reset-btn {
+    background: rgba(255,107,107,.12);
+    border: 1.5px solid var(--danger);
+    color: var(--danger);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 9px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .12s, color .12s, transform .1s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: .02em;
+  }
+  .reset-btn svg { flex-shrink: 0; }
+  .reset-btn:hover { background: var(--danger); color: #1a0505; transform: translateY(-1px); }
+  .reset-btn:active { transform: translateY(0); }
+
+  /* On narrow / mobile viewports, drop the subtitle first so the Reset
+     button always stays on-screen instead of overflowing and being clipped. */
+  @media (max-width: 560px) {
+    .header-right span { display: none; }
+  }
+
+  #layout { display: flex; flex: 1; min-height: 0; }
+
+  #canvas-area {
+    flex: 1;
+    background: #161616;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #canvas-label {
+    position: absolute;
+    top: 12px; left: 14px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    pointer-events: none;
+    opacity: .7;
+  }
+
+  #game-window {
+    background-color: #000;
+    position: relative;
+    flex-shrink: 0;
+    overflow: hidden;
+    background-image:
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* origin marker (crosshair showing where 0,0 currently is) */
+  #origin-marker {
+    position: absolute;
+    width: 14px; height: 14px;
+    pointer-events: none;
+    z-index: 3;
+    transform: translate(-50%,-50%);
+  }
+  #origin-marker::before, #origin-marker::after {
+    content: '';
+    position: absolute;
+    background: var(--success);
+  }
+  #origin-marker::before { width: 14px; height: 2px; top: 6px; left: 0; }
+  #origin-marker::after  { width: 2px; height: 14px; top: 0; left: 6px; }
+
+  .drag-box {
+    position: absolute;
+    background: transparent;
+    border: 2px dashed var(--border2);
+  }
+  .drag-box.selected {
+    border: 2px solid var(--accent);
+    z-index: 5;
+  }
+
+  .shape-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    display: block;
+  }
+
+  .drag-box-label {
+    position: absolute;
+    top: 3px; left: 5px;
+    font-size: 9px;
+    font-family: var(--mono);
+    color: rgba(255,255,255,.5);
+    pointer-events: none;
+    white-space: nowrap;
+    text-align: left;
+    text-shadow: 0 1px 3px rgba(0,0,0,.8);
+    z-index: 3;
+  }
+  .drag-box.selected .drag-box-label { color: rgba(255,255,255,.85); }
+
+  .box-text {
+    position: absolute;
+    inset: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #fff;
+    font-weight: 700;
+    line-height: 1.15;
+    text-shadow: 0 1px 3px rgba(0,0,0,.85);
+    overflow: hidden;
+    word-break: break-word;
+    outline: none;
+    pointer-events: none;
+    user-select: none;
+    cursor: text;
+    z-index: 2;
+  }
+  .box-text.editing {
+    pointer-events: auto;
+    user-select: text;
+    background: rgba(0,0,0,.28);
+    border-radius: 4px;
+    cursor: text;
+  }
+  .box-text:empty:not(.editing)::before {
+    content: 'Double‑click to type';
+    opacity: .32;
+    font-weight: 400;
+    font-size: 10px;
+    text-shadow: none;
+  }
+  .drag-handle.text-editing { pointer-events: none; }
+
+  .drag-handle {
+    position: absolute;
+    inset: 12px;
+    cursor: grab;
+    z-index: 1;
+  }
+  .drag-handle:active { cursor: grabbing; }
+
+  .rh {
+    position: absolute;
+    width: 10px; height: 10px;
+    background: #fff;
+    border: 2px solid var(--accent);
+    border-radius: 2px;
+    z-index: 10;
+    display: none;
+  }
+  .drag-box.selected .rh { display: block; }
+  .rh.tl { top:-5px;  left:-5px;  cursor: nwse-resize; }
+  .rh.tc { top:-5px;  left:calc(50% - 5px); cursor: ns-resize; }
+  .rh.tr { top:-5px;  right:-5px; cursor: nesw-resize; }
+  .rh.ml { top:calc(50% - 5px); left:-5px;  cursor: ew-resize; }
+  .rh.mr { top:calc(50% - 5px); right:-5px; cursor: ew-resize; }
+  .rh.bl { bottom:-5px; left:-5px;  cursor: nesw-resize; }
+  .rh.bc { bottom:-5px; left:calc(50% - 5px); cursor: ns-resize; }
+  .rh.br { bottom:-5px; right:-5px; cursor: nwse-resize; }
+
+  #panel {
+    width: 264px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .panel-section {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-title {
+    font-size: 10px; font-weight: 700;
+    letter-spacing:.1em; text-transform:uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .field { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .field:last-of-type { margin-bottom:0; }
+  .field label { font-size:12px; color:var(--muted); width:46px; flex-shrink:0; }
+  .field input[type="number"] {
+    flex:1; min-width:0;
+    background:var(--surface2);
+    border:1px solid var(--border2);
+    border-radius:var(--radius);
+    color:var(--text);
+    font-size:13px;
+    font-family:var(--mono);
+    padding:6px 9px;
+    -moz-appearance:textfield;
+  }
+  .field input[type="number"]::-webkit-inner-spin-button,
+  .field input[type="number"]::-webkit-outer-spin-button { -webkit-appearance:none; }
+  .field input[type="number"]:focus { outline:none; border-color:var(--accent); }
+  .px-label { font-size:11px; color:var(--muted); opacity:.6; width:18px; text-align:right; flex-shrink:0; }
+
+  .field input[type="color"] {
+    flex:1; min-width:0;
+    height: 30px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 3px;
+    cursor: pointer;
+  }
+
+  .btn {
+    width:100%; padding:7px 12px;
+    border-radius:var(--radius);
+    border:1px solid var(--border2);
+    background:var(--surface2);
+    color:var(--text);
+    font-size:13px;
+    cursor:pointer;
+    transition:background .12s, border-color .12s;
+    margin-top:10px;
+    font-family:inherit;
+  }
+  .btn:hover { background:#2a2a2a; border-color:#555; }
+  .btn.primary { background:var(--accent); border-color:transparent; color:#fff; font-weight:500; }
+  .btn.primary:hover { background:var(--accent-h); }
+
+  .snap-grid {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 5px;
+  }
+  .snap-btn {
+    padding: 7px 4px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 10px;
+    cursor: pointer;
+    transition: background .12s, color .12s, border-color .12s;
+    text-align: center;
+    font-family: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    line-height: 1.2;
+  }
+  .snap-btn:hover { background:#2a2a2a; border-color:#555; color:var(--text); }
+
+  /* mode toggle (single / multiple) */
+  .mode-toggle {
+    display: flex;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 3px;
+    gap: 3px;
+    margin-bottom: 12px;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 6px 4px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 11.5px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .mode-btn.active { background: var(--accent); color: #fff; font-weight: 500; }
+
+  /* shape selector (row of 3) */
+  .shape-row {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+  .shape-btn {
+    flex: 1;
+    padding: 7px 4px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  .shape-btn svg { display:block; }
+  .shape-btn:hover { background:#2a2a2a; border-color:#555; color:var(--text); }
+  .shape-btn.active { background: rgba(79,127,255,.15); border-color: var(--accent); color: var(--accent); }
+
+  /* origin selector */
+  .origin-grid {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 5px;
+  }
+  .origin-btn {
+    padding: 8px 4px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 10px;
+    cursor: pointer;
+    transition: background .12s, color .12s, border-color .12s;
+    text-align: center;
+    font-family: inherit;
+  }
+  .origin-btn:hover { background:#2a2a2a; border-color:#555; color:var(--text); }
+  .origin-btn.active { background: rgba(79,127,255,.15); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .origin-hint { font-size: 10.5px; color: var(--muted); opacity: .65; margin-top: 8px; line-height: 1.5; }
+
+  /* box list */
+  #box-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; max-height: 220px; overflow-y: auto; }
+  .box-row {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 7px;
+    cursor: pointer;
+  }
+  .box-row.selected { border-color: var(--accent); background: rgba(79,127,255,.10); }
+  .row-dot { width: 11px; height: 11px; flex-shrink: 0; background: var(--accent); border: 1px solid rgba(255,255,255,.3); }
+  .box-row input[type="text"] {
+    flex: 1; min-width: 0;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 12px;
+    font-family: inherit;
+    padding: 2px 0;
+  }
+  .box-row input[type="text"]:focus { outline: none; }
+  .box-row .row-coords { font-size: 10px; color: var(--muted); font-family: var(--mono); flex-shrink: 0; }
+  .box-row .row-del {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    border: none; background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+    font-size: 15px;
+  }
+  .box-row .row-del:hover { color: var(--danger); background: rgba(255,107,107,.1); }
+
+  #coords-section { padding:14px 16px; flex:1; }
+  #no-box-hint {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.6;
+    opacity: 1;
+    background: rgba(79,127,255,.10);
+    border: 1px solid rgba(79,127,255,.45);
+    border-radius: var(--radius);
+    padding: 12px 13px;
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    box-shadow: 0 0 0 3px rgba(79,127,255,.06);
+  }
+  #no-box-hint .hint-icon {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+  }
+  #no-box-hint strong { color: var(--accent-h); font-weight: 700; }
+  #coords-display { display:none; }
+
+  #coord-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .edit-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .edit-row .shape-row { flex: 1; margin-bottom: 0; }
+  .edit-row input[type="color"] {
+    width: 34px; height: 32px;
+    flex-shrink: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 3px;
+    cursor: pointer;
+  }
+
+  .size-readout {
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:8px 14px;
+    margin-bottom:7px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .size-readout span:first-child { font-size:11px; color:var(--muted); }
+  .size-readout span:last-child  { font-size:13px; font-family:var(--mono); font-weight:600; }
+
+  .coord-card {
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:10px 14px;
+    margin-bottom:7px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .coord-card { transition: border-color .12s, background .12s; }
+  .coord-card.editing { border-color: var(--accent); background: rgba(79,127,255,.08); }
+  .coord-axis { font-size:11px; font-weight:700; letter-spacing:.08em; color:var(--muted); width:16px; }
+  .coord-value {
+    font-size:20px; font-family:var(--mono); font-weight:600; color:var(--text);
+    flex:1; text-align:right; line-height:1;
+    background: transparent; border: none; outline: none; padding: 0;
+    width: 100%; min-width: 0; -moz-appearance: textfield; cursor: text;
+  }
+  .coord-value::-webkit-inner-spin-button,
+  .coord-value::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .coord-value:focus { color: var(--accent-h); }
+  .coord-hint-inline { font-size: 10px; color: var(--muted); opacity: .6; text-align: right; margin: -3px 0 7px; }
+
+  .copy-single {
+    background:none;
+    border:1px solid var(--border2);
+    color:var(--muted);
+    border-radius:6px;
+    width:28px; height:28px;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    transition:border-color .12s, color .12s;
+    padding:0;
+  }
+  .copy-single:hover { border-color:var(--accent); color:var(--accent); }
+  .copy-single.copied { border-color:var(--success); color:var(--success); }
+
+  #toast {
+    position:fixed; bottom:20px; left:50%;
+    transform:translateX(-50%) translateY(12px);
+    background:var(--success); color:#0a0a0a;
+    font-size:12px; font-weight:600;
+    padding:7px 16px; border-radius:20px;
+    opacity:0; pointer-events:none;
+    transition:opacity .18s, transform .18s;
+    white-space:nowrap; z-index:999;
+  }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* box count badge next to Box mode title */
+  #box-count-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(79,127,255,.12);
+    border: 1px solid rgba(79,127,255,.35);
+    border-radius: 20px;
+    padding: 2px 8px;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+
+  /* custom right-click context menu for boxes */
+  #ctx-menu {
+    position: fixed;
+    z-index: 1000;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    padding: 5px;
+    min-width: 200px;
+    max-height: 420px;
+    overflow-y: auto;
+    display: none;
+    font-size: 13px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) var(--surface2);
+  }
+  #ctx-menu::-webkit-scrollbar { width: 8px; }
+  #ctx-menu::-webkit-scrollbar-track { background: var(--surface2); }
+  #ctx-menu::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 8px; }
+  #ctx-menu::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  #ctx-menu .ctx-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 6px 9px 4px;
+  }
+  #ctx-menu button {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    padding: 7px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #ctx-menu button:hover { background: rgba(79,127,255,.14); color: var(--accent-h); }
+  #ctx-menu button.danger:hover { background: rgba(255,107,107,.14); color: var(--danger); }
+  #ctx-menu hr { border: none; border-top: 1px solid var(--border); margin: 4px 2px; }
+  #ctx-menu .ctx-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 9px;
+  }
+  #ctx-menu .ctx-row label { font-size: 11px; color: var(--muted); width: 40px; flex-shrink: 0; }
+  #ctx-menu .ctx-row input[type="number"] {
+    flex: 1; min-width: 0;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--mono);
+    padding: 4px 6px;
+  }
+
+  /* ── Sidebar open/close toggle ─────────────────────────────────────────── */
+  #layout { position: relative; --panel-w: 264px; }
+
+  #panel { transition: width .25s ease; overflow-x: hidden; }
+  #layout.panel-hidden #panel { width: 0; border-left: none; }
+
+  #panel-toggle {
+    position: fixed;
+    top: 50%;
+    right: var(--panel-w);
+    transform: translateY(-50%);
+    width: 22px;
+    height: 60px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 60;
+    color: var(--muted);
+    transition: right .25s ease, color .12s, background .12s;
+    padding: 0;
+  }
+  #panel-toggle:hover { color: var(--text); background: #2a2a2a; }
+  #panel-toggle svg { transition: transform .25s ease; display: block; }
+  #layout.panel-hidden #panel-toggle { right: 0; }
+  #layout.panel-hidden #panel-toggle svg { transform: rotate(180deg); }
+
+  /* ── Touch handling so dragging/resizing boxes doesn't scroll the page ──── */
+  .drag-handle, .rh { touch-action: none; }
+  body { touch-action: manipulation; }
+
+  /* ── Mobile layout fixes ──────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    header { padding: 8px 12px; gap: 8px; }
+    header h1 { font-size: 11px; }
+    .header-right { gap: 8px; }
+    .reset-btn { padding: 7px 11px; font-size: 12px; }
+    .reset-btn svg { width: 12px; height: 12px; }
+
+    #layout { --panel-w: min(85vw, 300px); }
+
+    #panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      height: auto;
+      width: var(--panel-w);
+      transform: translateX(0);
+      transition: transform .25s ease;
+      box-shadow: -8px 0 28px rgba(0,0,0,.55);
+      border-left: 1px solid var(--border2);
+      z-index: 45;
+    }
+    #layout.panel-hidden #panel {
+      width: var(--panel-w);
+      border-left: 1px solid var(--border2);
+      transform: translateX(100%);
+    }
+
+    #canvas-area { width: 100%; }
+
+    #panel-toggle { top: 50%; right: var(--panel-w); }
+    #layout.panel-hidden #panel-toggle { right: 0; }
+
+    .snap-grid, .origin-grid { gap: 6px; }
+
+    #ctx-menu { max-width: 88vw; }
+
+    /* Resize handles are mouse-precision tools — hide them on mobile so
+       phone users resize only through the side panel / context menu
+       instead of fiddling with tiny on-canvas handles. */
+    .rh { display: none !important; }
+
+    /* On mobile the hint text says "tap twice" instead of double-click */
+    .mobile-only-hint { display: inline; }
+    .desktop-only-hint { display: none; }
+  }
+
+  .mobile-only-hint { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Position Helper</h1>
+  <div class="header-right">
+    <span>Drag · resize · any origin · shapes</span>
+    <button class="reset-btn" onclick="resetAll()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/>
+      </svg>
+      Reset all
+    </button>
+  </div>
+</header>
+
+<div id="layout">
+  <div id="canvas-area">
+    <div id="canvas-label">854 × 480 px</div>
+    <div id="game-window">
+      <div id="origin-marker"></div>
+    </div>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <div class="section-title">Window / canvas</div>
+      <div class="field"><label>Width</label><input type="number" id="win-w" value="854" min="50" max="3840"><span class="px-label">px</span></div>
+      <div class="field"><label>Height</label><input type="number" id="win-h" value="480" min="50" max="2160"><span class="px-label">px</span></div>
+      <div class="field"><label>BG</label><input type="color" id="bg-color" value="#000000" oninput="setCanvasBg(this.value)" onchange="setCanvasBg(this.value)"></div>
+      <button class="btn primary" onclick="applyWindow()">Apply window</button>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">Coordinate origin</div>
+      <div class="origin-grid">
+        <button class="origin-btn active" data-origin="topleft" onclick="setOrigin('topleft')">Top‑Left</button>
+        <button class="origin-btn" data-origin="center" onclick="setOrigin('center')">Center</button>
+        <button class="origin-btn" data-origin="topright" onclick="setOrigin('topright')">Top‑Right</button>
+        <button class="origin-btn" data-origin="bottomleft" onclick="setOrigin('bottomleft')">Bot‑Left</button>
+        <button class="origin-btn" style="visibility:hidden"></button>
+        <button class="origin-btn" data-origin="bottomright" onclick="setOrigin('bottomright')">Bot‑Right</button>
+      </div>
+      <div class="origin-hint">Matches how your engine reads position — HTML/Pygame use Top‑Left, Unity/Godot 2D often use Center, OpenGL/math use Bottom‑Left. The green crosshair shows where (0,0) is.</div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">
+        <span>Box mode</span>
+        <span id="box-count-badge">0 boxes</span>
+      </div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-single" onclick="setBoxMode('single')">Single box</button>
+        <button class="mode-btn" id="mode-multi" onclick="setBoxMode('multiple')">Multiple boxes</button>
+      </div>
+
+      <div class="shape-row" id="default-shape-row">
+        <button class="shape-btn active" data-shape="rect" onclick="setDefaultShape('rect')" title="Rectangle">
+          <svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="3" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </button>
+        <button class="shape-btn" data-shape="circle" onclick="setDefaultShape('circle')" title="Circle">
+          <svg width="18" height="18" viewBox="0 0 18 18"><ellipse cx="9" cy="9" rx="7" ry="7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </button>
+        <button class="shape-btn" data-shape="triangle" onclick="setDefaultShape('triangle')" title="Triangle">
+          <svg width="18" height="18" viewBox="0 0 18 18"><polygon points="9,2.5 2,15.5 16,15.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+
+      <div class="field"><label>Width</label><input type="number" id="box-w" value="100" min="4"><span class="px-label">px</span></div>
+      <div class="field"><label>Height</label><input type="number" id="box-h" value="40" min="4"><span class="px-label">px</span></div>
+      <div class="field"><label>Color</label><input type="color" id="box-color" value="#4f7fff"></div>
+      <button class="btn primary" id="apply-size-btn" style="display:none" onclick="applyLiveSize()">Apply size to selected box</button>
+
+      <div id="single-controls">
+        <button class="btn" onclick="createResetBox()">Create / reset box</button>
+      </div>
+
+      <div id="multi-controls" style="display:none">
+        <button class="btn" onclick="addBox()">+ Add box</button>
+        <div id="box-list"></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">Snap to position</div>
+      <div class="snap-grid">
+        <button class="snap-btn" onclick="snapTo('tl')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".9"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/></svg>
+          Top left
+        </button>
+        <button class="snap-btn" onclick="snapTo('tc')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/><rect x="5" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".9"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/><rect x="1" y="9" width="14" height="6" rx="1" fill="currentColor" opacity=".2"/></svg>
+          Top mid
+        </button>
+        <button class="snap-btn" onclick="snapTo('tr')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".9"/><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/></svg>
+          Top right
+        </button>
+        <button class="snap-btn" onclick="snapTo('ml')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="5" width="6" height="6" rx="1" fill="currentColor" opacity=".9"/><rect x="9" y="1" width="6" height="14" rx="1" fill="currentColor" opacity=".2"/><rect x="1" y="1" width="6" height="2" rx="1" fill="currentColor" opacity=".2"/><rect x="1" y="13" width="6" height="2" rx="1" fill="currentColor" opacity=".2"/></svg>
+          Left mid
+        </button>
+        <button class="snap-btn" onclick="snapTo('cc')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="14" rx="1" fill="currentColor" opacity=".15"/><rect x="5" y="5" width="6" height="6" rx="1" fill="currentColor" opacity=".9"/></svg>
+          Center
+        </button>
+        <button class="snap-btn" onclick="snapTo('mr')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="9" y="5" width="6" height="6" rx="1" fill="currentColor" opacity=".9"/><rect x="1" y="1" width="6" height="14" rx="1" fill="currentColor" opacity=".2"/><rect x="9" y="1" width="6" height="2" rx="1" fill="currentColor" opacity=".2"/><rect x="9" y="13" width="6" height="2" rx="1" fill="currentColor" opacity=".2"/></svg>
+          Right mid
+        </button>
+        <button class="snap-btn" onclick="snapTo('bl')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".9"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/></svg>
+          Bot left
+        </button>
+        <button class="snap-btn" onclick="snapTo('bc')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="5" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".9"/><rect x="1" y="1" width="14" height="6" rx="1" fill="currentColor" opacity=".2"/></svg>
+          Bot mid
+        </button>
+        <button class="snap-btn" onclick="snapTo('br')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".9"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".2"/></svg>
+          Bot right
+        </button>
+      </div>
+    </div>
+
+    <div id="coords-section">
+      <div class="section-title">Coordinates</div>
+      <br>
+      <div id="no-box-hint"><bold>INFO.</bold><span class="hint-icon">?</span><span>Create a box, then drag, resize, or snap it — or select it and use the arrow keys to nudge it (hold <strong>Shift</strong> for 10px steps, <strong>Alt</strong> for 1px). Right‑click any box for quick actions. <span class="desktop-only-hint">Double‑click a box to type text on it.</span><span class="mobile-only-hint">Tap a box twice quickly to type text on it.</span> Coordinates update live and follow whichever origin you pick above.</span></div>
+      <div id="coords-display">
+        <div id="coord-name">Box</div>
+
+        <div class="edit-row">
+          <div class="shape-row" id="selected-shape-row">
+            <button class="shape-btn" data-shape="rect" onclick="changeSelectedShape('rect')" title="Rectangle">
+              <svg width="16" height="16" viewBox="0 0 18 18"><rect x="2" y="3" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+            </button>
+            <button class="shape-btn" data-shape="circle" onclick="changeSelectedShape('circle')" title="Circle">
+              <svg width="16" height="16" viewBox="0 0 18 18"><ellipse cx="9" cy="9" rx="7" ry="7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+            </button>
+            <button class="shape-btn" data-shape="triangle" onclick="changeSelectedShape('triangle')" title="Triangle">
+              <svg width="16" height="16" viewBox="0 0 18 18"><polygon points="9,2.5 2,15.5 16,15.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <input type="color" id="selected-color" value="#4f7fff" oninput="changeSelectedColor(this.value)" title="Fill color">
+        </div>
+
+        <div class="size-readout">
+          <span>Size</span>
+          <span id="size-read">100 × 40</span>
+        </div>
+        <div class="coord-card" id="cx-card">
+          <span class="coord-axis">X</span>
+          <input type="number" class="coord-value" id="cx" value="0" step="1">
+          <button class="copy-single" id="copy-x" title="Copy X" onclick="copySingle('x')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
+        </div>
+        <div class="coord-card" id="cy-card">
+          <span class="coord-axis">Y</span>
+          <input type="number" class="coord-value" id="cy" value="0" step="1">
+          <button class="copy-single" id="copy-y" title="Copy Y" onclick="copySingle('y')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
+        </div>
+        <button class="btn" style="font-size:12px;padding:7px 12px;margin-top:4px" onclick="copyBoth()">Copy X &amp; Y</button>
+        <div class="origin-hint">Click X or Y to type an exact coordinate, then press Enter or click away. Arrow keys nudge the selected box (5px). Hold Shift for 10px, Alt for 1px.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <button id="panel-toggle" onclick="togglePanel()" title="Show/hide panel" aria-label="Show/hide panel">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+  </button>
+</div>
+
+<div id="toast"></div>
+
+<!-- Custom right-click context menu for boxes -->
+<div id="ctx-menu">
+  <div class="ctx-title" id="ctx-menu-title">Box</div>
+  <div class="ctx-row">
+    <label>W</label>
+    <input type="number" id="ctx-w" min="4" onchange="ctxApplySize()">
+    <span class="px-label">px</span>
+  </div>
+  <div class="ctx-row">
+    <label>H</label>
+    <input type="number" id="ctx-h" min="4" onchange="ctxApplySize()">
+    <span class="px-label">px</span>
+  </div>
+  <div class="ctx-row">
+    <label>Color</label>
+    <input type="color" id="ctx-color" style="flex:1;height:28px;padding:2px;border-radius:5px;border:1px solid var(--border2);background:var(--bg);cursor:pointer;" onchange="ctxApplyColor()">
+  </div>
+  <hr>
+  <button onclick="ctxSetShape('rect')">▭ Rectangle</button>
+  <button onclick="ctxSetShape('circle')">◯ Circle</button>
+  <button onclick="ctxSetShape('triangle')">△ Triangle</button>
+  <hr>
+  <button onclick="ctxSnap('cc')">Center in canvas</button>
+  <button onclick="ctxBringToPanel()">Edit in panel</button>
+  <hr>
+  <button class="danger" onclick="ctxDeleteBox()">🗑 Delete box</button>
+</div>
+
+<script>
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  const canvasArea   = document.getElementById('canvas-area');
+  const gameWindow   = document.getElementById('game-window');
+  const originMarker = document.getElementById('origin-marker');
+  const canvasLbl    = document.getElementById('canvas-label');
+  const cxEl         = document.getElementById('cx');
+  const cyEl         = document.getElementById('cy');
+  const sizeRead     = document.getElementById('size-read');
+  const coordsDisp   = document.getElementById('coords-display');
+  const noBoxHint    = document.getElementById('no-box-hint');
+  const coordName    = document.getElementById('coord-name');
+  const boxListEl    = document.getElementById('box-list');
+  const selColorEl   = document.getElementById('selected-color');
+  const toast        = document.getElementById('toast');
+  const boxWEl       = document.getElementById('box-w');
+  const boxHEl       = document.getElementById('box-h');
+  const boxCountBadge= document.getElementById('box-count-badge');
+  const ctxMenu      = document.getElementById('ctx-menu');
+
+  // Logical (game-pixel) state
+  let winW = 854, winH = 480;
+  let scale = 1;
+
+  let boxes = [];          // { id, name, shape, color, x, y, w, h, el, svg, shapeEl, labelEl, listRow, listCoords, listDot }
+  let boxIdCounter = 0;
+  let selectedId = null;
+  let boxMode = 'single';       // 'single' | 'multiple'
+  let originMode = 'topleft';   // topleft | topright | bottomleft | bottomright | center
+  let defaultShape = 'rect';    // shape used for newly created boxes
+  let ctxTargetId = null;       // box currently targeted by the right-click menu
+
+  let activeInteraction = null;
+  let toastT;
+
+  const DEFAULTS = { winW: 854, winH: 480, bg: '#000000', boxW: 100, boxH: 40, boxColor: '#4f7fff' };
+
+  // ── Persistence (localStorage) ──────────────────────────────────────────
+  const STORAGE_KEY = 'positionHelperState.v1';
+  let restoring = false; // suppress saves while we're restoring on load
+
+  function saveState() {
+    if (restoring) return;
+    try {
+      const state = {
+        winW: document.getElementById('win-w').value,
+        winH: document.getElementById('win-h').value,
+        bg: document.getElementById('bg-color').value,
+        boxW: document.getElementById('box-w').value,
+        boxH: document.getElementById('box-h').value,
+        boxColor: document.getElementById('box-color').value,
+        originMode, boxMode, defaultShape,
+        selectedId,
+        boxes: boxes.map(b => ({ name: b.name, shape: b.shape, color: b.color, x: b.x, y: b.y, w: b.w, h: b.h, id: b.id, text: b.text || '' }))
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) { /* storage unavailable — fail silently */ }
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function clearState() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+  }
+
+  function restoreState() {
+    const s = loadState();
+    if (!s) return false;
+    restoring = true;
+
+    document.getElementById('win-w').value = s.winW ?? DEFAULTS.winW;
+    document.getElementById('win-h').value = s.winH ?? DEFAULTS.winH;
+    document.getElementById('bg-color').value = s.bg ?? DEFAULTS.bg;
+    document.getElementById('box-w').value = s.boxW ?? DEFAULTS.boxW;
+    document.getElementById('box-h').value = s.boxH ?? DEFAULTS.boxH;
+    document.getElementById('box-color').value = s.boxColor ?? DEFAULTS.boxColor;
+
+    setCanvasBg(document.getElementById('bg-color').value);
+    setDefaultShape(s.defaultShape || 'rect');
+    setOrigin(s.originMode || 'topleft');
+    setBoxMode(s.boxMode === 'multiple' ? 'multiple' : 'single');
+    applyWindow();
+
+    let restoredSelected = null;
+    (s.boxes || []).forEach(sb => {
+      const b = addBox(sb.x, sb.y, sb.w, sb.h, sb.name, sb.shape, sb.color, sb.text);
+      if (sb.text) b.textEl.textContent = sb.text;
+      if (sb.id === s.selectedId) restoredSelected = b.id;
+    });
+    if (boxes.length) {
+      selectBox(restoredSelected || boxes[boxes.length - 1].id);
+    } else {
+      hideCoordsUI();
+    }
+
+    restoring = false;
+    return true;
+  }
+
+  // ── Window sizing ─────────────────────────────────────────────────────────
+  function getScale() {
+    const aw = canvasArea.clientWidth  - 48;
+    const ah = canvasArea.clientHeight - 48;
+    return Math.min(aw / winW, ah / winH, 1);
+  }
+
+  function applyWindow() {
+    winW  = Math.max(50, parseInt(document.getElementById('win-w').value) || 854);
+    winH  = Math.max(50, parseInt(document.getElementById('win-h').value) || 480);
+    scale = getScale();
+    gameWindow.style.width  = (winW * scale) + 'px';
+    gameWindow.style.height = (winH * scale) + 'px';
+    canvasLbl.textContent   = winW + ' × ' + winH + ' px  (scale ' + scale.toFixed(2) + 'x)';
+    boxes.forEach(b => { clampBox(b); renderBox(b); });
+    renderOriginMarker();
+    saveState();
+  }
+
+  function setCanvasBg(hex) {
+    gameWindow.style.backgroundColor = hex;
+    saveState();
+  }
+
+  // ── Origin ───────────────────────────────────────────────────────────────
+  function setOrigin(mode) {
+    originMode = mode;
+    document.querySelectorAll('.origin-btn[data-origin]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.origin === mode);
+    });
+    renderOriginMarker();
+    updateCoords();
+    saveState();
+  }
+
+  function renderOriginMarker() {
+    let ox, oy;
+    switch (originMode) {
+      case 'topleft':     ox = 0;        oy = 0;        break;
+      case 'topright':    ox = winW;     oy = 0;        break;
+      case 'bottomleft':  ox = 0;        oy = winH;     break;
+      case 'bottomright': ox = winW;     oy = winH;     break;
+      case 'center':      ox = winW / 2; oy = winH / 2; break;
+    }
+    originMarker.style.left = (ox * scale) + 'px';
+    originMarker.style.top  = (oy * scale) + 'px';
+  }
+
+  function transformCoords(box, origin) {
+    switch (origin) {
+      case 'topleft':     return [box.x, box.y];
+      case 'topright':    return [winW - (box.x + box.w), box.y];
+      case 'bottomleft':  return [box.x, winH - (box.y + box.h)];
+      case 'bottomright': return [winW - (box.x + box.w), winH - (box.y + box.h)];
+      case 'center':      return [(box.x + box.w / 2) - winW / 2, (box.y + box.h / 2) - winH / 2];
+    }
+  }
+
+  // Inverse of transformCoords: given an origin-space (tx, ty) target and a box's
+  // current w/h, return the equivalent top-left [x, y] to store on the box.
+  function inverseTransformCoords(box, origin, tx, ty) {
+    switch (origin) {
+      case 'topleft':     return [tx, ty];
+      case 'topright':    return [winW - box.w - tx, ty];
+      case 'bottomleft':  return [tx, winH - box.h - ty];
+      case 'bottomright': return [winW - box.w - tx, winH - box.h - ty];
+      case 'center':      return [tx + winW / 2 - box.w / 2, ty + winH / 2 - box.h / 2];
+    }
+  }
+
+  // ── Box mode ─────────────────────────────────────────────────────────────
+  function setBoxMode(m) {
+    boxMode = m;
+    document.getElementById('mode-single').classList.toggle('active', m === 'single');
+    document.getElementById('mode-multi').classList.toggle('active', m === 'multiple');
+    document.getElementById('single-controls').style.display = m === 'single' ? 'block' : 'none';
+    document.getElementById('multi-controls').style.display  = m === 'multiple' ? 'block' : 'none';
+
+    if (m === 'single' && boxes.length > 1) {
+      const keep = boxes.find(b => b.id === selectedId) || boxes[0];
+      boxes.filter(b => b !== keep).forEach(b => removeBoxInternal(b));
+      boxes = [keep];
+      selectBox(keep.id);
+    }
+    updateBoxCountBadge();
+    saveState();
+  }
+
+  // ── Default shape (for new boxes) ───────────────────────────────────────
+  function setDefaultShape(shape) {
+    defaultShape = shape;
+    document.querySelectorAll('#default-shape-row .shape-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.shape === shape);
+    });
+    saveState();
+  }
+
+  // ── Shape geometry ───────────────────────────────────────────────────────
+  function createShapeNode(shape) {
+    let el;
+    if (shape === 'circle') {
+      el = document.createElementNS(SVG_NS, 'ellipse');
+      el.setAttribute('cx', '50'); el.setAttribute('cy', '50');
+      el.setAttribute('rx', '48'); el.setAttribute('ry', '48');
+    } else if (shape === 'triangle') {
+      el = document.createElementNS(SVG_NS, 'polygon');
+      el.setAttribute('points', '50,3 3,97 97,97');
+    } else {
+      el = document.createElementNS(SVG_NS, 'rect');
+      el.setAttribute('x', '2'); el.setAttribute('y', '2');
+      el.setAttribute('width', '96'); el.setAttribute('height', '96');
+    }
+    el.setAttribute('vector-effect', 'non-scaling-stroke');
+    return el;
+  }
+
+  function setBoxShape(box, shape) {
+    box.shape = shape;
+    if (box.shapeEl) box.shapeEl.remove();
+    const el = createShapeNode(shape);
+    box.svg.appendChild(el);
+    box.shapeEl = el;
+    updateShapeStyle(box);
+    if (box.listDot) box.listDot.style.borderRadius = shape === 'circle' ? '50%' : (shape === 'triangle' ? '0' : '2px');
+    if (box.listDot) box.listDot.style.clipPath = shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : 'none';
+  }
+
+  function updateShapeStyle(box) {
+    const selected = box.id === selectedId;
+    box.shapeEl.setAttribute('fill', box.color);
+    box.shapeEl.setAttribute('fill-opacity', selected ? '0.5' : '0.3');
+    box.shapeEl.setAttribute('stroke', selected ? '#4f7fff' : box.color);
+    box.shapeEl.setAttribute('stroke-width', selected ? '3' : '2');
+    box.shapeEl.setAttribute('stroke-dasharray', selected ? 'none' : '5 4');
+    if (box.listDot) box.listDot.style.background = box.color;
+  }
+
+  // ── Editing the selected box's shape / color ────────────────────────────
+  function changeSelectedShape(shape) {
+    const box = getSelectedBox();
+    if (!box) return;
+    setBoxShape(box, shape);
+    updateSelectedShapeUI(box);
+    saveState();
+  }
+
+  function changeSelectedColor(hex) {
+    const box = getSelectedBox();
+    if (!box) return;
+    box.color = hex;
+    updateShapeStyle(box);
+    saveState();
+  }
+
+  function updateSelectedShapeUI(box) {
+    document.querySelectorAll('#selected-shape-row .shape-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.shape === box.shape);
+    });
+    selColorEl.value = box.color;
+  }
+
+  // ── Box count badge ──────────────────────────────────────────────────────
+  function updateBoxCountBadge() {
+    if (!boxCountBadge) return;
+    const n = boxes.length;
+    boxCountBadge.textContent = n + (n === 1 ? ' box' : ' boxes');
+  }
+
+  // ── Box creation / DOM ───────────────────────────────────────────────────
+  function createBoxDOM(box) {
+    const div = document.createElement('div');
+    div.className = 'drag-box active';
+    div.dataset.id = box.id;
+
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'shape-svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    div.appendChild(svg);
+    box.svg = svg;
+
+    const textEl = document.createElement('div');
+    textEl.className = 'box-text';
+    textEl.contentEditable = 'true';
+    textEl.spellcheck = false;
+    textEl.textContent = box.text || '';
+    div.appendChild(textEl);
+    box.textEl = textEl;
+
+    const label = document.createElement('div');
+    label.className = 'drag-box-label';
+    div.appendChild(label);
+
+    const handle = document.createElement('div');
+    handle.className = 'drag-handle';
+    div.appendChild(handle);
+
+    ['tl','tc','tr','ml','mr','bl','bc','br'].forEach(dir => {
+      const rh = document.createElement('div');
+      rh.className = 'rh ' + dir;
+      rh.dataset.dir = dir;
+      rh.addEventListener('pointerdown', e => startResize(e, box, dir));
+      div.appendChild(rh);
+    });
+
+    handle.addEventListener('pointerdown', e => startDrag(e, box));
+    handle.addEventListener('dblclick', e => { e.stopPropagation(); startTextEdit(box); });
+    handle.addEventListener('contextmenu', e => openCtxMenu(e, box));
+    div.addEventListener('contextmenu', e => openCtxMenu(e, box));
+    textEl.addEventListener('pointerdown', e => e.stopPropagation());
+    textEl.addEventListener('contextmenu', e => openCtxMenu(e, box));
+    textEl.addEventListener('blur', () => finishTextEdit(box));
+    textEl.addEventListener('keydown', e => {
+      e.stopPropagation(); // don't let arrow keys / etc bubble up while typing
+      if (e.key === 'Escape') { e.preventDefault(); textEl.blur(); }
+    });
+
+    gameWindow.appendChild(div);
+    box.el = div;
+    box.labelEl = label;
+    box.handleEl = handle;
+  }
+
+  function startTextEdit(box) {
+    selectBox(box.id);
+    box.textEl.classList.add('editing');
+    box.handleEl.classList.add('text-editing');
+    box.textEl.focus();
+    const range = document.createRange();
+    range.selectNodeContents(box.textEl);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  function finishTextEdit(box) {
+    box.text = box.textEl.textContent;
+    if (!box.text.trim()) { box.textEl.innerHTML = ''; box.text = ''; }
+    box.textEl.classList.remove('editing');
+    box.handleEl.classList.remove('text-editing');
+    saveState();
+  }
+
+  function nextSpawnOffset() {
+    const n = boxes.length;
+    return { ox: (n * 24) % 200, oy: (n * 24) % 140 };
+  }
+
+  function addBox(x, y, w, h, name, shape, color, text) {
+    w = w || Math.max(4, parseInt(document.getElementById('box-w').value) || DEFAULTS.boxW);
+    h = h || Math.max(4, parseInt(document.getElementById('box-h').value) || DEFAULTS.boxH);
+    shape = shape || defaultShape;
+    color = color || document.getElementById('box-color').value || DEFAULTS.boxColor;
+    if (x === undefined || y === undefined) {
+      const off = nextSpawnOffset();
+      x = off.ox; y = off.oy;
+    }
+    const id = ++boxIdCounter;
+    const box = { id, name: name || ('Box ' + id), x, y, w, h, color, text: text || '' };
+    createBoxDOM(box);
+    boxes.push(box);
+    clampBox(box);
+    setBoxShape(box, shape);
+    renderBox(box);
+    addBoxRow(box);
+    selectBox(id);
+    showCoordsUI();
+    updateBoxCountBadge();
+    saveState();
+    return box;
+  }
+
+  function createResetBox() {
+    boxes.slice().forEach(b => removeBoxInternal(b));
+    boxes = [];
+    boxListEl.innerHTML = '';
+    addBox(0, 0, undefined, undefined, 'Box');
+  }
+
+  function removeBoxInternal(box) {
+    box.el.remove();
+    if (box.listRow) box.listRow.remove();
+  }
+
+  function removeBox(id, evt) {
+    if (evt) evt.stopPropagation();
+    const idx = boxes.findIndex(b => b.id === id);
+    if (idx === -1) return;
+    removeBoxInternal(boxes[idx]);
+    boxes.splice(idx, 1);
+    if (selectedId === id) {
+      selectedId = boxes.length ? boxes[boxes.length - 1].id : null;
+      boxes.forEach(b => {
+        b.el.classList.toggle('selected', b.id === selectedId);
+        if (b.listRow) b.listRow.classList.toggle('selected', b.id === selectedId);
+        updateShapeStyle(b);
+      });
+    }
+    if (!boxes.length) hideCoordsUI();
+    else updateCoords();
+    updateBoxCountBadge();
+    saveState();
+  }
+
+  function renameBox(id, value) {
+    const box = boxes.find(b => b.id === id);
+    if (!box) return;
+    box.name = value || box.name;
+    renderBox(box);
+    if (selectedId === id) coordName.textContent = box.name;
+    saveState();
+  }
+
+  // ── List panel rows ──────────────────────────────────────────────────────
+  function addBoxRow(box) {
+    const row = document.createElement('div');
+    row.className = 'box-row';
+    row.dataset.id = box.id;
+
+    const dot = document.createElement('span');
+    dot.className = 'row-dot';
+    dot.style.background = box.color;
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = box.name;
+    nameInput.addEventListener('click', e => e.stopPropagation());
+    nameInput.addEventListener('input', () => renameBox(box.id, nameInput.value));
+
+    const coordsSpan = document.createElement('span');
+    coordsSpan.className = 'row-coords';
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'row-del';
+    delBtn.title = 'Delete';
+    delBtn.innerHTML = '&times;';
+    delBtn.addEventListener('click', e => removeBox(box.id, e));
+
+    row.appendChild(dot);
+    row.appendChild(nameInput);
+    row.appendChild(coordsSpan);
+    row.appendChild(delBtn);
+    row.addEventListener('click', () => selectBox(box.id));
+    row.addEventListener('contextmenu', e => openCtxMenu(e, box));
+
+    boxListEl.appendChild(row);
+    box.listRow = row;
+    box.listCoords = coordsSpan;
+    box.listDot = dot;
+    box.listNameInput = nameInput;
+    updateRowCoords(box);
+  }
+
+  function updateRowCoords(box) {
+    if (!box.listCoords) return;
+    const [tx, ty] = transformCoords(box, originMode);
+    box.listCoords.textContent = Math.round(tx) + ',' + Math.round(ty);
+  }
+
+  // ── Rendering ────────────────────────────────────────────────────────────
+  function renderBox(box) {
+    box.el.style.left   = Math.round(box.x * scale) + 'px';
+    box.el.style.top    = Math.round(box.y * scale) + 'px';
+    box.el.style.width  = Math.round(box.w * scale) + 'px';
+    box.el.style.height = Math.round(box.h * scale) + 'px';
+    box.labelEl.textContent = box.name + ' · ' + Math.round(box.w) + '×' + Math.round(box.h);
+    const fontSize = Math.max(9, Math.min(72, Math.min(box.w, box.h) * scale * 0.3));
+    box.textEl.style.fontSize = fontSize + 'px';
+    updateRowCoords(box);
+  }
+
+  function clampBox(box) {
+    box.w = Math.min(Math.max(box.w, 4), winW);
+    box.h = Math.min(Math.max(box.h, 4), winH);
+    box.x = Math.max(0, Math.min(box.x, winW - box.w));
+    box.y = Math.max(0, Math.min(box.y, winH - box.h));
+  }
+
+  function showCoordsUI() {
+    coordsDisp.style.display = 'block';
+    noBoxHint.style.display  = 'none';
+  }
+  function hideCoordsUI() {
+    coordsDisp.style.display = 'none';
+    noBoxHint.style.display  = 'flex';
+  }
+
+  function selectBox(id) {
+    selectedId = id;
+    boxes.forEach(b => {
+      b.el.classList.toggle('selected', b.id === id);
+      if (b.listRow) b.listRow.classList.toggle('selected', b.id === id);
+      updateShapeStyle(b);
+    });
+    updateCoords();
+    saveState();
+  }
+
+  function getSelectedBox() {
+    return boxes.find(b => b.id === selectedId) || null;
+  }
+
+  function updateCoords() {
+    const box = getSelectedBox();
+    if (!box) { hideCoordsUI(); syncSizeInputsFromBox(null); return; }
+    showCoordsUI();
+    const [tx, ty] = transformCoords(box, originMode);
+    coordName.textContent = box.name;
+    if (document.activeElement !== cxEl) cxEl.value = Math.round(tx);
+    if (document.activeElement !== cyEl) cyEl.value = Math.round(ty);
+    sizeRead.textContent = Math.round(box.w) + ' × ' + Math.round(box.h);
+    updateRowCoords(box);
+    updateSelectedShapeUI(box);
+    syncSizeInputsFromBox(box);
+  }
+
+  // ── Live width/height editing ────────────────────────────────────────────
+  // Keep the "Width" / "Height" fields in the Box mode panel in sync with the
+  // currently selected box, and — the other direction — let editing those
+  // fields resize the selected box live, without needing to hit "Create /
+  // reset box" (which used to destroy and respawn the box).
+  function syncSizeInputsFromBox(box) {
+    const applyBtn = document.getElementById('apply-size-btn');
+    if (!box) { if (applyBtn) applyBtn.style.display = 'none'; return; }
+    if (document.activeElement !== boxWEl) boxWEl.value = Math.round(box.w);
+    if (document.activeElement !== boxHEl) boxHEl.value = Math.round(box.h);
+    if (applyBtn) applyBtn.style.display = 'block';
+  }
+
+  function applyLiveSize() {
+    const box = getSelectedBox();
+    if (!box) return; // no box yet: these fields just act as defaults for the next new box
+    const w = parseFloat(boxWEl.value);
+    const h = parseFloat(boxHEl.value);
+    if (!isNaN(w) && w > 0) box.w = w;
+    if (!isNaN(h) && h > 0) box.h = h;
+    clampBox(box);
+    renderBox(box);
+    updateCoords();
+    saveState();
+  }
+
+  // ── Type-in coordinates ─────────────────────────────────────────────────
+  function applyTypedCoord(axis) {
+    const box = getSelectedBox();
+    if (!box) return;
+    const inputEl = axis === 'x' ? cxEl : cyEl;
+    const val = parseFloat(inputEl.value);
+    if (isNaN(val)) { updateCoords(); return; }
+    const [curTx, curTy] = transformCoords(box, originMode);
+    const tx = axis === 'x' ? val : curTx;
+    const ty = axis === 'y' ? val : curTy;
+    const [nx, ny] = inverseTransformCoords(box, originMode, tx, ty);
+    box.x = Math.max(0, Math.min(nx, winW - box.w));
+    box.y = Math.max(0, Math.min(ny, winH - box.h));
+    renderBox(box);
+    updateCoords();
+    saveState();
+  }
+
+  [['cx','x','cx-card'], ['cy','y','cy-card']].forEach(([inputId, axis, cardId]) => {
+    const inputEl = document.getElementById(inputId);
+    const cardEl  = document.getElementById(cardId);
+    inputEl.addEventListener('focus', () => cardEl.classList.add('editing'));
+    inputEl.addEventListener('blur',  () => { cardEl.classList.remove('editing'); applyTypedCoord(axis); });
+    inputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); inputEl.blur(); }
+    });
+  });
+
+  // ── Snap ─────────────────────────────────────────────────────────────────
+  function snapTo(pos) {
+    const box = getSelectedBox();
+    if (!box) { alert('Create a box first.'); return; }
+    const cx = (winW - box.w) / 2;
+    const cy = (winH - box.h) / 2;
+    const map = {
+      tl: [0,          0         ],
+      tc: [cx,         0         ],
+      tr: [winW-box.w, 0         ],
+      ml: [0,          cy        ],
+      cc: [cx,         cy        ],
+      mr: [winW-box.w, cy        ],
+      bl: [0,          winH-box.h],
+      bc: [cx,         winH-box.h],
+      br: [winW-box.w, winH-box.h],
+    };
+    [box.x, box.y] = map[pos];
+    renderBox(box); updateCoords();
+    saveState();
+  }
+
+  // ── Drag (move) ───────────────────────────────────────────────────────────
+  function startDrag(e, box) {
+    if (e.button !== 0) return; // left click only — right click is reserved for the context menu
+    selectBox(box.id);
+    activeInteraction = { type: 'drag', box, startMX: e.clientX, startMY: e.clientY, startBX: box.x, startBY: box.y, moved: false };
+    e.target.setPointerCapture(e.pointerId);
+    e.preventDefault(); e.stopPropagation();
+  }
+
+  // ── Resize ───────────────────────────────────────────────────────────────
+  function startResize(e, box, dir) {
+    if (e.button !== 0) return;
+    selectBox(box.id);
+    activeInteraction = {
+      type: 'resize', box, dir,
+      startMX: e.clientX, startMY: e.clientY,
+      startBX: box.x, startBY: box.y, startBW: box.w, startBH: box.h
+    };
+    e.target.setPointerCapture(e.pointerId);
+    e.preventDefault(); e.stopPropagation();
+  }
+
+  document.addEventListener('pointermove', e => {
+    if (!activeInteraction) return;
+    const ai = activeInteraction;
+    const box = ai.box;
+    const dx = (e.clientX - ai.startMX) / scale;
+    const dy = (e.clientY - ai.startMY) / scale;
+    const MIN = 10;
+
+    if (ai.type === 'drag') {
+      if (!ai.moved && (Math.abs(e.clientX - ai.startMX) > 5 || Math.abs(e.clientY - ai.startMY) > 5)) {
+        ai.moved = true;
+      }
+      box.x = Math.max(0, Math.min(ai.startBX + dx, winW - box.w));
+      box.y = Math.max(0, Math.min(ai.startBY + dy, winH - box.h));
+      renderBox(box); updateCoords();
+      return;
+    }
+
+    if (ai.type === 'resize') {
+      let nx = ai.startBX, ny = ai.startBY, nw = ai.startBW, nh = ai.startBH;
+      const d = ai.dir;
+
+      if (d === 'ml' || d === 'tl' || d === 'bl') {
+        nw = ai.startBW - dx;
+        if (nw < MIN) nw = MIN;
+        nx = ai.startBX + ai.startBW - nw;
+      }
+      if (d === 'mr' || d === 'tr' || d === 'br') {
+        nw = ai.startBW + dx;
+        if (nw < MIN) nw = MIN;
+      }
+      if (d === 'tc' || d === 'tl' || d === 'tr') {
+        nh = ai.startBH - dy;
+        if (nh < MIN) nh = MIN;
+        ny = ai.startBY + ai.startBH - nh;
+      }
+      if (d === 'bc' || d === 'bl' || d === 'br') {
+        nh = ai.startBH + dy;
+        if (nh < MIN) nh = MIN;
+      }
+
+      if (nx < 0)          { nw += nx; nx = 0; }
+      if (ny < 0)          { nh += ny; ny = 0; }
+      if (nx + nw > winW)  nw = winW - nx;
+      if (ny + nh > winH)  nh = winH - ny;
+      if (nw < MIN) nw = MIN;
+      if (nh < MIN) nh = MIN;
+
+      box.x = nx; box.y = ny; box.w = nw; box.h = nh;
+      renderBox(box); updateCoords();
+    }
+  });
+
+  let lastTapBoxId = null;
+  let lastTapTime = 0;
+
+  document.addEventListener('pointerup', e => {
+    if (activeInteraction) {
+      const ai = activeInteraction;
+      if (ai.type === 'drag' && !ai.moved) {
+        const now = Date.now();
+        if (lastTapBoxId === ai.box.id && (now - lastTapTime) < 400) {
+          startTextEdit(ai.box);
+          lastTapBoxId = null;
+          lastTapTime = 0;
+        } else {
+          lastTapBoxId = ai.box.id;
+          lastTapTime = now;
+        }
+      }
+      saveState();
+    }
+    activeInteraction = null;
+  });
+
+  // ── Copy ─────────────────────────────────────────────────────────────────
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastT);
+    toastT = setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+
+  function copySingle(axis) {
+    const box = getSelectedBox();
+    if (!box) return;
+    const [tx, ty] = transformCoords(box, originMode);
+    const val = axis === 'x' ? Math.round(tx) : Math.round(ty);
+    navigator.clipboard.writeText(String(val)).then(() => {
+      const btn = document.getElementById('copy-' + axis);
+      btn.classList.add('copied');
+      setTimeout(() => btn.classList.remove('copied'), 1200);
+      showToast(axis.toUpperCase() + ':  ' + val + '  copied');
+    });
+  }
+
+  function copyBoth() {
+    const box = getSelectedBox();
+    if (!box) return;
+    const [tx, ty] = transformCoords(box, originMode);
+    const val = Math.round(tx) + ', ' + Math.round(ty);
+    navigator.clipboard.writeText(val).then(() => showToast('Copied:  ' + val));
+  }
+
+  // ── Right-click context menu on boxes ───────────────────────────────────
+  function openCtxMenu(e, box) {
+    e.preventDefault();
+    e.stopPropagation();
+    selectBox(box.id);
+    ctxTargetId = box.id;
+
+    document.getElementById('ctx-menu-title').textContent = box.name;
+    document.getElementById('ctx-w').value = Math.round(box.w);
+    document.getElementById('ctx-h').value = Math.round(box.h);
+    document.getElementById('ctx-color').value = box.color;
+
+    // Position within viewport bounds so the menu never renders off-screen.
+    const menuW = 220, menuH = 320;
+    let left = e.clientX, top = e.clientY;
+    if (left + menuW > window.innerWidth)  left = window.innerWidth  - menuW - 8;
+    if (top  + menuH > window.innerHeight) top  = window.innerHeight - menuH - 8;
+    ctxMenu.style.left = Math.max(8, left) + 'px';
+    ctxMenu.style.top  = Math.max(8, top)  + 'px';
+    ctxMenu.style.display = 'block';
+  }
+
+  function closeCtxMenu() {
+    ctxMenu.style.display = 'none';
+    ctxTargetId = null;
+  }
+
+  function getCtxBox() {
+    return boxes.find(b => b.id === ctxTargetId) || null;
+  }
+
+  function ctxApplySize() {
+    const box = getCtxBox();
+    if (!box) return;
+    const w = parseFloat(document.getElementById('ctx-w').value);
+    const h = parseFloat(document.getElementById('ctx-h').value);
+    if (!isNaN(w) && w > 0) box.w = w;
+    if (!isNaN(h) && h > 0) box.h = h;
+    clampBox(box);
+    renderBox(box);
+    updateCoords();
+    saveState();
+  }
+
+  function ctxApplyColor() {
+    const box = getCtxBox();
+    if (!box) return;
+    box.color = document.getElementById('ctx-color').value;
+    updateShapeStyle(box);
+    if (selectedId === box.id) selColorEl.value = box.color;
+    saveState();
+  }
+
+  function ctxSetShape(shape) {
+    const box = getCtxBox();
+    if (!box) return;
+    setBoxShape(box, shape);
+    if (selectedId === box.id) updateSelectedShapeUI(box);
+    saveState();
+    closeCtxMenu();
+  }
+
+  function ctxSnap(pos) {
+    const box = getCtxBox();
+    if (!box) return;
+    selectBox(box.id);
+    snapTo(pos);
+    closeCtxMenu();
+  }
+
+  function ctxBringToPanel() {
+    const box = getCtxBox();
+    if (!box) return;
+    selectBox(box.id);
+    document.getElementById('coords-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    closeCtxMenu();
+  }
+
+  function ctxDeleteBox() {
+    const box = getCtxBox();
+    if (!box) return;
+    removeBox(box.id);
+    closeCtxMenu();
+  }
+
+  // Close the context menu on outside clicks / scroll / escape.
+  document.addEventListener('pointerdown', e => {
+    if (ctxMenu.style.display === 'block' && !ctxMenu.contains(e.target)) closeCtxMenu();
+  });
+  document.addEventListener('scroll', closeCtxMenu, true);
+  window.addEventListener('blur', closeCtxMenu);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCtxMenu(); });
+
+  // ── Reset everything ────────────────────────────────────────────────────
+  function resetAll() {
+    boxes.slice().forEach(b => removeBoxInternal(b));
+    boxes = [];
+    boxIdCounter = 0;
+    selectedId = null;
+    boxListEl.innerHTML = '';
+
+    document.getElementById('win-w').value = DEFAULTS.winW;
+    document.getElementById('win-h').value = DEFAULTS.winH;
+    document.getElementById('bg-color').value = DEFAULTS.bg;
+    setCanvasBg(DEFAULTS.bg);
+
+    document.getElementById('box-w').value = DEFAULTS.boxW;
+    document.getElementById('box-h').value = DEFAULTS.boxH;
+    document.getElementById('box-color').value = DEFAULTS.boxColor;
+    setDefaultShape('rect');
+
+    setOrigin('topleft');
+    setBoxMode('single');
+    hideCoordsUI();
+    applyWindow();
+    updateBoxCountBadge();
+    clearState();
+    showToast('Reset to defaults');
+  }
+
+  // ── Keyboard nudge (arrow keys move the selected box in a straight line) ──
+  document.addEventListener('keydown', e => {
+    const arrowKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+    if (!arrowKeys.includes(e.key)) return;
+
+    const active = document.activeElement;
+    const tag = active && active.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (active && active.isContentEditable)) return; // don't hijack typing/color pickers
+
+    const box = getSelectedBox();
+    if (!box) return;
+
+    const step = e.shiftKey ? 10 : (e.altKey ? 1 : 5);
+    if (e.key === 'ArrowLeft')  box.x = Math.max(0, Math.min(box.x - step, winW - box.w));
+    if (e.key === 'ArrowRight') box.x = Math.max(0, Math.min(box.x + step, winW - box.w));
+    if (e.key === 'ArrowUp')    box.y = Math.max(0, Math.min(box.y - step, winH - box.h));
+    if (e.key === 'ArrowDown')  box.y = Math.max(0, Math.min(box.y + step, winH - box.h));
+
+    e.preventDefault(); // stop the page from scrolling
+    renderBox(box);
+    updateCoords();
+    saveState();
+  });
+
+  ['win-w','win-h','box-color'].forEach(id => {
+    document.getElementById(id).addEventListener('change', saveState);
+  });
+  boxWEl.addEventListener('change', saveState);
+  boxHEl.addEventListener('change', saveState);
+
+  // ── Safety / lockdown features ───────────────────────────────────────────
+  // Best-effort deterrents only: client-side JS cannot truly block DevTools
+  // or the browser's own inspector — anyone can still open them manually
+  // through the browser menu. This just removes the easy/accidental paths
+  // (right-click → Inspect, common keyboard shortcuts) and keeps the
+  // custom right-click menu working for boxes.
+  document.addEventListener('contextmenu', e => {
+    // Allow our own custom context menu (it calls preventDefault itself and
+    // stops propagation before this reaches here); block the native menu
+    // everywhere else on the page.
+    e.preventDefault();
+  });
+
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    const blockCombo =
+      k === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (k === 'I' || k === 'i' || k === 'J' || k === 'j' || k === 'C' || k === 'c')) ||
+      (e.metaKey && e.altKey && (k === 'I' || k === 'i' || k === 'J' || k === 'j' || k === 'C' || k === 'c')) || // Mac Cmd+Opt+I/J/C
+      (e.ctrlKey && (k === 'U' || k === 'u')) ||
+      (e.metaKey && (k === 'U' || k === 'u'));
+    if (blockCombo) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+
+  // ── Sidebar open/close toggle ────────────────────────────────────────────
+  function togglePanel() {
+    document.getElementById('layout').classList.toggle('panel-hidden');
+    savePanelState();
+  }
+
+  function savePanelState() {
+    try {
+      localStorage.setItem('positionHelperPanelHidden', document.getElementById('layout').classList.contains('panel-hidden') ? '1' : '0');
+    } catch (e) { /* ignore */ }
+  }
+
+  function restorePanelState() {
+    try {
+      const layout = document.getElementById('layout');
+      const saved = localStorage.getItem('positionHelperPanelHidden');
+      if (saved === '1') layout.classList.add('panel-hidden');
+      else layout.classList.remove('panel-hidden'); // default: panel starts open, stays open until the user closes it
+    } catch (e) { /* ignore */ }
+  }
+
+  // On desktop, closing/opening the panel changes how much width the canvas
+  // has, so re-run the scale calculation once the slide transition finishes.
+  document.getElementById('panel').addEventListener('transitionend', e => {
+    if (e.propertyName === 'width') applyWindow();
+  });
+
+  window.addEventListener('resize', applyWindow);
+  restorePanelState();
+  if (!restoreState()) {
+    applyWindow();
+    setCanvasBg(document.getElementById('bg-color').value);
+  }
+  updateBoxCountBadge();
+</script>
+</body>
+</html>
