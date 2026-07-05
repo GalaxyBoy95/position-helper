@@ -1,5 +1,3 @@
-# Copyright Notice
+Position Helper.
 
-Copyright © 2026 Position Helper. All rights reserved.
-
-This project and its source code are the intellectual property of the author. No part of this project may be copied, modified, redistributed, or used without prior written permission.
+Position Helper is a lightweight tool for game developers to quickly find accurate UI coordinates. Drag, resize, snap to preset positions, customize your game resolution, and copy X/Y values instantly. Perfect for Raylib, SDL, SFML, Godot, Unity, and other game engines.
