@@ -844,8 +844,11 @@
         </button>
       </div>
 
-      <div class="field"><label>Width</label><input type="number" id="box-w" value="100" min="4"><span class="px-label">px</span></div>
-      <div class="field"><label>Height</label><input type="number" id="box-h" value="40" min="4"><span class="px-label">px</span></div>
+      <div id="box-wh-fields">
+        <div class="field"><label>Width</label><input type="number" id="box-w" value="100" min="4"><span class="px-label">px</span></div>
+        <div class="field"><label>Height</label><input type="number" id="box-h" value="40" min="4"><span class="px-label">px</span></div>
+      </div>
+      <div class="field" id="box-radius-field" style="display:none"><label>Radius</label><input type="number" id="box-radius" value="20" min="2"><span class="px-label">px</span></div>
       <div class="field"><label>Color</label><input type="color" id="box-color" value="#4f7fff"></div>
       <button class="btn primary" id="apply-size-btn" style="display:none" onclick="applyLiveSize()">Apply size to selected box</button>
 
@@ -927,6 +930,7 @@
           <span>Size</span>
           <span id="size-read">100 × 40</span>
         </div>
+        <button class="btn primary" id="apply-size-btn-2" style="display:none" onclick="applyLiveSize()">Apply size to selected box</button>
         <div class="coord-card" id="cx-card">
           <span class="coord-axis">X</span>
           <input type="number" class="coord-value" id="cx" value="0" step="1">
@@ -970,14 +974,21 @@
 <!-- Custom right-click context menu for boxes -->
 <div id="ctx-menu">
   <div class="ctx-title" id="ctx-menu-title">Box</div>
-  <div class="ctx-row">
-    <label>W</label>
-    <input type="number" id="ctx-w" min="4" onchange="ctxApplySize()">
-    <span class="px-label">px</span>
+  <div id="ctx-wh-fields">
+    <div class="ctx-row">
+      <label>W</label>
+      <input type="number" id="ctx-w" min="4" onchange="ctxApplySize()">
+      <span class="px-label">px</span>
+    </div>
+    <div class="ctx-row">
+      <label>H</label>
+      <input type="number" id="ctx-h" min="4" onchange="ctxApplySize()">
+      <span class="px-label">px</span>
+    </div>
   </div>
-  <div class="ctx-row">
-    <label>H</label>
-    <input type="number" id="ctx-h" min="4" onchange="ctxApplySize()">
+  <div class="ctx-row" id="ctx-radius-field" style="display:none">
+    <label>Radius</label>
+    <input type="number" id="ctx-radius" min="2" onchange="ctxApplySize()">
     <span class="px-label">px</span>
   </div>
   <div class="ctx-row">
@@ -1013,8 +1024,10 @@
   const toast        = document.getElementById('toast');
   const boxWEl       = document.getElementById('box-w');
   const boxHEl       = document.getElementById('box-h');
+  const boxRadiusEl  = document.getElementById('box-radius');
   const boxCountBadge= document.getElementById('box-count-badge');
   const ctxMenu      = document.getElementById('ctx-menu');
+  const ctxRadiusEl  = document.getElementById('ctx-radius');
 
   // Logical (game-pixel) state
   let winW = 854, winH = 480;
@@ -1194,7 +1207,16 @@
     document.querySelectorAll('#default-shape-row .shape-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.shape === shape);
     });
+    if (!getSelectedBox()) updateSizeFieldsVisibility(shape);
     saveState();
+  }
+
+  // Circles use a single Radius field instead of separate Width/Height —
+  // toggles which fields are shown in the Box mode panel.
+  function updateSizeFieldsVisibility(shape) {
+    const isCircle = shape === 'circle';
+    document.getElementById('box-wh-fields').style.display = isCircle ? 'none' : 'block';
+    document.getElementById('box-radius-field').style.display = isCircle ? 'flex' : 'none';
   }
 
   // ── Shape geometry ───────────────────────────────────────────────────────
@@ -1241,8 +1263,15 @@
   function changeSelectedShape(shape) {
     const box = getSelectedBox();
     if (!box) return;
+    if (shape === 'circle' && box.w !== box.h) {
+      const avg = Math.round((box.w + box.h) / 2);
+      box.w = avg; box.h = avg;
+      clampBox(box);
+      renderBox(box);
+    }
     setBoxShape(box, shape);
     updateSelectedShapeUI(box);
+    syncSizeInputsFromBox(box);
     saveState();
   }
 
@@ -1351,9 +1380,14 @@
   }
 
   function addBox(x, y, w, h, name, shape, color, text) {
-    w = w || Math.max(4, parseInt(document.getElementById('box-w').value) || DEFAULTS.boxW);
-    h = h || Math.max(4, parseInt(document.getElementById('box-h').value) || DEFAULTS.boxH);
     shape = shape || defaultShape;
+    if (shape === 'circle' && w === undefined && h === undefined) {
+      const r = Math.max(2, parseFloat(document.getElementById('box-radius').value) || 20);
+      w = r * 2; h = r * 2;
+    } else {
+      w = w || Math.max(4, parseInt(document.getElementById('box-w').value) || DEFAULTS.boxW);
+      h = h || Math.max(4, parseInt(document.getElementById('box-h').value) || DEFAULTS.boxH);
+    }
     color = color || document.getElementById('box-color').value || DEFAULTS.boxColor;
     if (x === undefined || y === undefined) {
       const off = nextSpawnOffset();
@@ -1524,20 +1558,36 @@
   // fields resize the selected box live, without needing to hit "Create /
   // reset box" (which used to destroy and respawn the box).
   function syncSizeInputsFromBox(box) {
-    const applyBtn = document.getElementById('apply-size-btn');
-    if (!box) { if (applyBtn) applyBtn.style.display = 'none'; return; }
-    if (document.activeElement !== boxWEl) boxWEl.value = Math.round(box.w);
-    if (document.activeElement !== boxHEl) boxHEl.value = Math.round(box.h);
+    const applyBtn  = document.getElementById('apply-size-btn');
+    const applyBtn2 = document.getElementById('apply-size-btn-2');
+    if (!box) {
+      if (applyBtn) applyBtn.style.display = 'none';
+      if (applyBtn2) applyBtn2.style.display = 'none';
+      return;
+    }
+    updateSizeFieldsVisibility(box.shape);
+    if (box.shape === 'circle') {
+      if (document.activeElement !== boxRadiusEl) boxRadiusEl.value = Math.round(box.w / 2);
+    } else {
+      if (document.activeElement !== boxWEl) boxWEl.value = Math.round(box.w);
+      if (document.activeElement !== boxHEl) boxHEl.value = Math.round(box.h);
+    }
     if (applyBtn) applyBtn.style.display = 'block';
+    if (applyBtn2) applyBtn2.style.display = 'block';
   }
 
   function applyLiveSize() {
     const box = getSelectedBox();
     if (!box) return; // no box yet: these fields just act as defaults for the next new box
-    const w = parseFloat(boxWEl.value);
-    const h = parseFloat(boxHEl.value);
-    if (!isNaN(w) && w > 0) box.w = w;
-    if (!isNaN(h) && h > 0) box.h = h;
+    if (box.shape === 'circle') {
+      const r = parseFloat(boxRadiusEl.value);
+      if (!isNaN(r) && r > 0) { box.w = r * 2; box.h = r * 2; }
+    } else {
+      const w = parseFloat(boxWEl.value);
+      const h = parseFloat(boxHEl.value);
+      if (!isNaN(w) && w > 0) box.w = w;
+      if (!isNaN(h) && h > 0) box.h = h;
+    }
     clampBox(box);
     renderBox(box);
     updateCoords();
@@ -1880,8 +1930,15 @@
     ctxTargetId = box.id;
 
     document.getElementById('ctx-menu-title').textContent = box.name;
-    document.getElementById('ctx-w').value = Math.round(box.w);
-    document.getElementById('ctx-h').value = Math.round(box.h);
+    const isCircle = box.shape === 'circle';
+    document.getElementById('ctx-wh-fields').style.display = isCircle ? 'none' : 'block';
+    document.getElementById('ctx-radius-field').style.display = isCircle ? 'flex' : 'none';
+    if (isCircle) {
+      ctxRadiusEl.value = Math.round(box.w / 2);
+    } else {
+      document.getElementById('ctx-w').value = Math.round(box.w);
+      document.getElementById('ctx-h').value = Math.round(box.h);
+    }
     document.getElementById('ctx-color').value = box.color;
 
     // Position within viewport bounds so the menu never renders off-screen.
@@ -1906,10 +1963,15 @@
   function ctxApplySize() {
     const box = getCtxBox();
     if (!box) return;
-    const w = parseFloat(document.getElementById('ctx-w').value);
-    const h = parseFloat(document.getElementById('ctx-h').value);
-    if (!isNaN(w) && w > 0) box.w = w;
-    if (!isNaN(h) && h > 0) box.h = h;
+    if (box.shape === 'circle') {
+      const r = parseFloat(ctxRadiusEl.value);
+      if (!isNaN(r) && r > 0) { box.w = r * 2; box.h = r * 2; }
+    } else {
+      const w = parseFloat(document.getElementById('ctx-w').value);
+      const h = parseFloat(document.getElementById('ctx-h').value);
+      if (!isNaN(w) && w > 0) box.w = w;
+      if (!isNaN(h) && h > 0) box.h = h;
+    }
     clampBox(box);
     renderBox(box);
     updateCoords();
@@ -1928,8 +1990,14 @@
   function ctxSetShape(shape) {
     const box = getCtxBox();
     if (!box) return;
+    if (shape === 'circle' && box.w !== box.h) {
+      const avg = Math.round((box.w + box.h) / 2);
+      box.w = avg; box.h = avg;
+      clampBox(box);
+      renderBox(box);
+    }
     setBoxShape(box, shape);
-    if (selectedId === box.id) updateSelectedShapeUI(box);
+    if (selectedId === box.id) { updateSelectedShapeUI(box); syncSizeInputsFromBox(box); }
     saveState();
     closeCtxMenu();
   }
@@ -2021,6 +2089,7 @@
   });
   boxWEl.addEventListener('change', saveState);
   boxHEl.addEventListener('change', saveState);
+  boxRadiusEl.addEventListener('change', saveState);
 
   // ── Safety / lockdown features ───────────────────────────────────────────
   // Best-effort deterrents only: client-side JS cannot truly block DevTools
