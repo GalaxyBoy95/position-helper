@@ -667,6 +667,8 @@
     .header-right { gap: 8px; }
     .reset-btn { padding: 7px 11px; font-size: 12px; }
     .reset-btn svg { width: 12px; height: 12px; }
+    .icon-btn { width: 30px; height: 30px; }
+    .mobile-only-btn { display: flex; }
 
     #layout { --panel-w: min(85vw, 300px); }
 
@@ -772,11 +774,205 @@
   #modal-actions button.primary:hover { background: var(--accent-h); }
   #modal-actions button.danger { background: var(--danger); border-color: transparent; color: #1a0505; font-weight: 700; }
   #modal-actions button.danger:hover { background: #ff8080; }
+  /* ── header icon buttons (settings / mobile undo-redo) ──────────────────── */
+  .icon-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background .12s, border-color .12s;
+  }
+  .icon-btn:hover { background: #2a2a2a; border-color: #555; }
+  .icon-btn:disabled { opacity: .35; cursor: default; }
+  .icon-btn:disabled:hover { background: var(--surface2); border-color: var(--border2); }
+  .mobile-only-btn { display: none; }
+
+  /* ── decorated color swatches ─────────────────────────────────────────── */
+  input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    border: 1px solid var(--border2);
+    padding: 0;
+    width: 100%;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    background: var(--surface2);
+    transition: border-color .12s, box-shadow .12s;
+  }
+  input[type="color"]:hover { border-color: var(--accent); }
+  input[type="color"]:focus { outline: none; box-shadow: 0 0 0 3px rgba(79,127,255,.25); }
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 4px; }
+  input[type="color"]::-webkit-color-swatch { border-radius: 6px; border: 2px solid rgba(255,255,255,.15); }
+  input[type="color"]::-moz-color-swatch { border-radius: 6px; border: 2px solid rgba(255,255,255,.15); }
+
+  .swatch-row { margin-bottom: 14px; }
+  .swatch-row label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .swatch-input { display: flex; align-items: center; gap: 10px; }
+  .swatch-input input[type="color"] { width: 52px; height: 40px; flex-shrink: 0; }
+  .swatch-hex {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 8px 10px;
+    flex: 1;
+    text-transform: uppercase;
+  }
+
+  /* ── settings modal ───────────────────────────────────────────────────── */
+  #settings-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    z-index: 2100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  #settings-overlay.show { display: flex; }
+  #settings-box {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 420px;
+    max-height: 82vh;
+    box-shadow: 0 16px 48px rgba(0,0,0,.6);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  #settings-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #settings-close:hover { color: var(--text); background: rgba(255,255,255,.06); }
+  #settings-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 10px 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-tab {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .settings-tab:hover { color: var(--text); }
+  .settings-tab.active { color: var(--accent-h); border-bottom-color: var(--accent); }
+  #settings-body { padding: 16px; overflow-y: auto; }
+  .settings-pane { display: none; }
+  .settings-pane.active { display: block; }
+
+  /* ── shortcut rebinding rows ──────────────────────────────────────────── */
+  .shortcut-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .shortcut-row:last-child { border-bottom: none; }
+  .shortcut-row .shortcut-label { font-size: 13px; color: var(--text); }
+  .shortcut-row .shortcut-desc { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+  .shortcut-combo {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--accent-h);
+    background: rgba(79,127,255,.12);
+    border: 1px solid rgba(79,127,255,.35);
+    border-radius: 6px;
+    padding: 5px 9px;
+    white-space: nowrap;
+  }
+  .shortcut-change-btn {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11.5px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .shortcut-change-btn:hover { background: #2a2a2a; border-color: #555; }
+  .shortcut-change-btn.recording { background: var(--accent); border-color: transparent; color: #fff; }
+  .shortcut-error {
+    font-size: 10.5px;
+    color: var(--danger);
+    margin-top: -6px;
+    margin-bottom: 6px;
+    display: none;
+  }
+  .shortcut-error.show { display: block; }
+
+  /* ── multi-select highlight (Ctrl + right-click on a box) ────────────────── */
+  .drag-box.multi-selected {
+    border-color: #ffb347;
+    box-shadow: 0 0 0 2px rgba(255,179,71,.4);
+  }
 </style>
 </head>
 <body>
 
 <header>
+  <button id="settings-btn" class="icon-btn" onclick="openSettings()" title="Settings" aria-label="Settings">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  </button>
+  <button id="undo-btn-mobile" class="icon-btn mobile-only-btn" onclick="undo()" title="Undo" aria-label="Undo">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>
+    </svg>
+  </button>
+  <button id="redo-btn-mobile" class="icon-btn mobile-only-btn" onclick="redo()" title="Redo" aria-label="Redo">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>
+    </svg>
+  </button>
   <h1>Position Helper</h1>
   <div class="header-right">
     <span>Drag · resize · any origin · shapes</span>
@@ -800,14 +996,6 @@
   </div>
 
   <div id="panel">
-
-    <div class="panel-section">
-      <div class="section-title">Window / canvas</div>
-      <div class="field"><label>Width</label><input type="number" id="win-w" value="854" min="50" max="3840"><span class="px-label">px</span></div>
-      <div class="field"><label>Height</label><input type="number" id="win-h" value="480" min="50" max="2160"><span class="px-label">px</span></div>
-      <div class="field"><label>BG</label><input type="color" id="bg-color" value="#000000" oninput="setCanvasBg(this.value)" onchange="setCanvasBg(this.value)"></div>
-      <button class="btn primary" onclick="applyWindow()">Apply window</button>
-    </div>
 
     <div class="panel-section">
       <div class="section-title">Coordinate origin</div>
@@ -971,6 +1159,56 @@
   </div>
 </div>
 
+<div id="settings-overlay">
+  <div id="settings-box">
+    <div id="settings-header">
+      <span>Settings</span>
+      <button id="settings-close" onclick="closeSettings()" title="Close" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div id="settings-tabs">
+      <button class="settings-tab active" data-tab="canvas" onclick="setSettingsTab('canvas')">Canvas</button>
+      <button class="settings-tab" data-tab="appearance" onclick="setSettingsTab('appearance')">Appearance</button>
+      <button class="settings-tab" data-tab="shortcuts" onclick="setSettingsTab('shortcuts')">Shortcuts</button>
+    </div>
+
+    <div id="settings-body">
+
+      <div class="settings-pane active" id="settings-pane-canvas">
+        <div class="field"><label>Width</label><input type="number" id="win-w" value="854" min="50" max="3840"><span class="px-label">px</span></div>
+        <div class="field"><label>Height</label><input type="number" id="win-h" value="480" min="50" max="2160"><span class="px-label">px</span></div>
+        <div class="swatch-row">
+          <label>Window background</label>
+          <div class="swatch-input">
+            <input type="color" id="bg-color" value="#000000" oninput="setCanvasBg(this.value)" onchange="setCanvasBg(this.value)">
+            <span class="swatch-hex" id="bg-color-hex">#000000</span>
+          </div>
+        </div>
+        <button class="btn primary" onclick="applyWindow()">Apply window</button>
+      </div>
+
+      <div class="settings-pane" id="settings-pane-appearance">
+        <div class="swatch-row">
+          <label>Page background</label>
+          <div class="swatch-input">
+            <input type="color" id="page-bg-color" value="#0f0f0f" oninput="setPageBg(this.value)" onchange="setPageBg(this.value)">
+            <span class="swatch-hex" id="page-bg-color-hex">#0f0f0f</span>
+          </div>
+        </div>
+        <div class="coord-hint-inline" style="text-align:left;margin-top:2px;">Changes the color around the whole app — panel, header, and background — not just the canvas window.</div>
+      </div>
+
+      <div class="settings-pane" id="settings-pane-shortcuts">
+        <div class="coord-hint-inline" style="text-align:left;margin:0 0 10px;">Click "Change", then press a new key combo. It can't match a browser shortcut or another action here — you'll be asked to try again until it's unique.</div>
+        <div id="shortcut-list"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- Custom right-click context menu for boxes -->
 <div id="ctx-menu">
   <div class="ctx-title" id="ctx-menu-title">Box</div>
@@ -1044,7 +1282,7 @@
   let activeInteraction = null;
   let toastT;
 
-  const DEFAULTS = { winW: 854, winH: 480, bg: '#000000', boxW: 100, boxH: 40, boxColor: '#4f7fff' };
+  const DEFAULTS = { winW: 854, winH: 480, bg: '#000000', pageBg: '#0f0f0f', boxW: 100, boxH: 40, boxColor: '#4f7fff' };
 
   // ── Persistence (localStorage) ──────────────────────────────────────────
   const STORAGE_KEY = 'positionHelperState.v1';
@@ -1057,6 +1295,7 @@
         winW: document.getElementById('win-w').value,
         winH: document.getElementById('win-h').value,
         bg: document.getElementById('bg-color').value,
+        pageBg: document.getElementById('page-bg-color').value,
         boxW: document.getElementById('box-w').value,
         boxH: document.getElementById('box-h').value,
         boxColor: document.getElementById('box-color').value,
@@ -1087,11 +1326,13 @@
     document.getElementById('win-w').value = s.winW ?? DEFAULTS.winW;
     document.getElementById('win-h').value = s.winH ?? DEFAULTS.winH;
     document.getElementById('bg-color').value = s.bg ?? DEFAULTS.bg;
+    document.getElementById('page-bg-color').value = s.pageBg ?? DEFAULTS.pageBg;
     document.getElementById('box-w').value = s.boxW ?? DEFAULTS.boxW;
     document.getElementById('box-h').value = s.boxH ?? DEFAULTS.boxH;
     document.getElementById('box-color').value = s.boxColor ?? DEFAULTS.boxColor;
 
     setCanvasBg(document.getElementById('bg-color').value);
+    setPageBg(document.getElementById('page-bg-color').value);
     setDefaultShape(s.defaultShape || 'rect');
     setOrigin(s.originMode || 'topleft');
     setBoxMode(s.boxMode === 'multiple' ? 'multiple' : 'single');
@@ -1134,6 +1375,15 @@
 
   function setCanvasBg(hex) {
     gameWindow.style.backgroundColor = hex;
+    const hexEl = document.getElementById('bg-color-hex');
+    if (hexEl) hexEl.textContent = hex;
+    saveState();
+  }
+
+  function setPageBg(hex) {
+    document.body.style.backgroundColor = hex;
+    const hexEl = document.getElementById('page-bg-color-hex');
+    if (hexEl) hexEl.textContent = hex;
     saveState();
   }
 
@@ -1273,6 +1523,7 @@
     updateSelectedShapeUI(box);
     syncSizeInputsFromBox(box);
     saveState();
+    pushHistory();
   }
 
   function changeSelectedColor(hex) {
@@ -1281,6 +1532,7 @@
     box.color = hex;
     updateShapeStyle(box);
     saveState();
+    pushHistory();
   }
 
   function updateSelectedShapeUI(box) {
@@ -1372,6 +1624,7 @@
     box.textEl.classList.remove('editing');
     box.handleEl.classList.remove('text-editing');
     saveState();
+    pushHistory();
   }
 
   function nextSpawnOffset() {
@@ -1405,6 +1658,7 @@
     showCoordsUI();
     updateBoxCountBadge();
     saveState();
+    pushHistory();
     return box;
   }
 
@@ -1424,6 +1678,7 @@
     if (evt) evt.stopPropagation();
     const idx = boxes.findIndex(b => b.id === id);
     if (idx === -1) return;
+    multiSelectedIds.delete(id);
     removeBoxInternal(boxes[idx]);
     boxes.splice(idx, 1);
     if (selectedId === id) {
@@ -1438,6 +1693,7 @@
     else updateCoords();
     updateBoxCountBadge();
     saveState();
+    pushHistory();
   }
 
   function renameBox(id, value) {
@@ -1592,6 +1848,7 @@
     renderBox(box);
     updateCoords();
     saveState();
+    pushHistory();
   }
 
   // ── Type-in coordinates ─────────────────────────────────────────────────
@@ -1642,6 +1899,7 @@
     [box.x, box.y] = map[pos];
     renderBox(box); updateCoords();
     saveState();
+    pushHistory();
   }
 
   // ── Custom modal (replaces native alert/confirm) ─────────────────────────
@@ -1686,8 +1944,352 @@
     showAppConfirm('This will clear every box and setting back to defaults. Are you sure?', resetAll);
   }
 
+  // ── Settings modal ────────────────────────────────────────────────────────
+  function openSettings() {
+    document.getElementById('settings-overlay').classList.add('show');
+    renderShortcutList();
+  }
+  function closeSettings() {
+    document.getElementById('settings-overlay').classList.remove('show');
+    cancelShortcutRecording();
+  }
+  function setSettingsTab(tab) {
+    document.querySelectorAll('.settings-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+    document.querySelectorAll('.settings-pane').forEach(pane => pane.classList.toggle('active', pane.id === 'settings-pane-' + tab));
+  }
+  document.getElementById('settings-overlay').addEventListener('pointerdown', e => {
+    if (e.target.id === 'settings-overlay') closeSettings();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('settings-overlay').classList.contains('show')) closeSettings();
+  });
+
+  // ── Rebindable keyboard shortcuts ─────────────────────────────────────────
+  const SHORTCUT_DEFS = [
+    { id: 'undo',      label: 'Undo',            desc: 'Step back one change' },
+    { id: 'redo',      label: 'Redo',            desc: 'Step forward one change' },
+    { id: 'delete',    label: 'Delete selected', desc: 'Remove the selected box(es)' },
+    { id: 'duplicate', label: 'Duplicate',       desc: 'Copy the selected box(es)' },
+  ];
+  const DEFAULT_SHORTCUTS = {
+    undo:      { key: 'z',      ctrl: true,  shift: false, alt: false },
+    redo:      { key: 'y',      ctrl: true,  shift: false, alt: false },
+    delete:    { key: 'Delete', ctrl: false, shift: false, alt: false },
+    duplicate: { key: 'd',      ctrl: true,  shift: false, alt: false },
+  };
+  const SHORTCUTS_KEY = 'positionHelperShortcuts';
+
+  function loadShortcuts() {
+    try {
+      const raw = localStorage.getItem(SHORTCUTS_KEY);
+      const base = JSON.parse(JSON.stringify(DEFAULT_SHORTCUTS));
+      if (!raw) return base;
+      return Object.assign(base, JSON.parse(raw));
+    } catch (e) { return JSON.parse(JSON.stringify(DEFAULT_SHORTCUTS)); }
+  }
+  function saveShortcuts() {
+    try { localStorage.setItem(SHORTCUTS_KEY, JSON.stringify(shortcuts)); } catch (e) { /* ignore */ }
+  }
+
+  let shortcuts = loadShortcuts();
+  let recordingActionId = null;
+
+  function comboLabel(combo) {
+    const parts = [];
+    if (combo.ctrl) parts.push('Ctrl');
+    if (combo.shift) parts.push('Shift');
+    if (combo.alt) parts.push('Alt');
+    let keyName = combo.key;
+    if (keyName === ' ' || keyName === 'Space') keyName = 'Space';
+    else if (keyName.length === 1) keyName = keyName.toUpperCase();
+    parts.push(keyName);
+    return parts.join('+');
+  }
+
+  // Common browser/OS shortcuts the user is not allowed to override — except
+  // Ctrl+D, which is intentionally repurposed in-app for Duplicate; we
+  // preventDefault() it ourselves so the browser's bookmark dialog never opens.
+  const BROWSER_SHORTCUT_BLACKLIST = [
+    { key: 't', ctrl: true }, { key: 'n', ctrl: true }, { key: 'w', ctrl: true },
+    { key: 'tab', ctrl: true }, { key: 's', ctrl: true }, { key: 'p', ctrl: true },
+    { key: 'f', ctrl: true }, { key: 'r', ctrl: true }, { key: 'l', ctrl: true },
+    { key: 'h', ctrl: true }, { key: 'j', ctrl: true },
+    { key: 'u', ctrl: true }, { key: 'k', ctrl: true }, { key: 'e', ctrl: true }, { key: 'g', ctrl: true },
+    { key: 'i', ctrl: true, shift: true }, { key: 'j', ctrl: true, shift: true },
+    { key: 'c', ctrl: true, shift: true }, { key: 'n', ctrl: true, shift: true },
+    { key: 't', ctrl: true, shift: true }, { key: 'w', ctrl: true, shift: true },
+    { key: 'delete', ctrl: true, shift: true },
+    { key: 'f4', alt: true },
+    { key: 'f5' }, { key: 'f6' }, { key: 'f11' }, { key: 'f12' },
+  ];
+
+  function comboKeyMatches(a, b) {
+    return String(a.key).toLowerCase() === String(b.key).toLowerCase() &&
+      !!a.ctrl === !!b.ctrl && !!a.shift === !!b.shift && !!a.alt === !!b.alt;
+  }
+
+  function findComboConflict(combo) {
+    const hit = BROWSER_SHORTCUT_BLACKLIST.find(bad =>
+      comboKeyMatches(combo, { key: bad.key, ctrl: !!bad.ctrl, shift: !!bad.shift, alt: !!bad.alt })
+    );
+    if (hit) return 'That combo is used by your browser — pick another.';
+    for (const id in shortcuts) {
+      if (comboKeyMatches(shortcuts[id], combo)) {
+        const def = SHORTCUT_DEFS.find(d => d.id === id);
+        return 'Already used by "' + (def ? def.label : id) + '" — pick another.';
+      }
+    }
+    return null;
+  }
+
+  function renderShortcutList() {
+    const list = document.getElementById('shortcut-list');
+    if (!list) return;
+    list.innerHTML = '';
+    SHORTCUT_DEFS.forEach(def => {
+      const row = document.createElement('div');
+      row.className = 'shortcut-row';
+
+      const left = document.createElement('div');
+      left.innerHTML = '<div class="shortcut-label">' + def.label + '</div><div class="shortcut-desc">' + def.desc + '</div>';
+
+      const right = document.createElement('div');
+      right.style.display = 'flex';
+      right.style.alignItems = 'center';
+      right.style.gap = '8px';
+
+      const comboSpan = document.createElement('span');
+      comboSpan.className = 'shortcut-combo';
+      comboSpan.id = 'combo-' + def.id;
+      comboSpan.textContent = comboLabel(shortcuts[def.id]);
+
+      const btn = document.createElement('button');
+      btn.className = 'shortcut-change-btn';
+      btn.id = 'change-btn-' + def.id;
+      btn.textContent = 'Change';
+      btn.onclick = () => startRecordingShortcut(def.id);
+
+      right.appendChild(comboSpan);
+      right.appendChild(btn);
+      row.appendChild(left);
+      row.appendChild(right);
+      list.appendChild(row);
+
+      const err = document.createElement('div');
+      err.className = 'shortcut-error';
+      err.id = 'error-' + def.id;
+      list.appendChild(err);
+    });
+  }
+
+  function startRecordingShortcut(actionId) {
+    cancelShortcutRecording();
+    recordingActionId = actionId;
+    const btn = document.getElementById('change-btn-' + actionId);
+    if (btn) { btn.textContent = 'Press keys…'; btn.classList.add('recording'); }
+  }
+
+  function cancelShortcutRecording() {
+    if (!recordingActionId) return;
+    const btn = document.getElementById('change-btn-' + recordingActionId);
+    if (btn) { btn.textContent = 'Change'; btn.classList.remove('recording'); }
+    const err = document.getElementById('error-' + recordingActionId);
+    if (err) err.classList.remove('show');
+    recordingActionId = null;
+  }
+
+  // Capture phase so this runs (and can swallow the keystroke) before any
+  // other keydown handler on the page, including the shortcut dispatcher below.
+  document.addEventListener('keydown', e => {
+    if (!recordingActionId) return;
+    if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return; // wait for a real key
+    e.preventDefault();
+    e.stopPropagation();
+
+    const combo = { key: e.key === ' ' ? 'Space' : e.key, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey, alt: e.altKey };
+    const conflict = findComboConflict(combo);
+    const err = document.getElementById('error-' + recordingActionId);
+    if (conflict) {
+      if (err) { err.textContent = conflict; err.classList.add('show'); }
+      return; // keep recording until the user picks something unique
+    }
+    shortcuts[recordingActionId] = combo;
+    saveShortcuts();
+    const comboSpan = document.getElementById('combo-' + recordingActionId);
+    if (comboSpan) comboSpan.textContent = comboLabel(combo);
+    if (err) err.classList.remove('show');
+    cancelShortcutRecording();
+  }, true);
+
+  function matchesShortcut(e, actionId) {
+    const c = shortcuts[actionId];
+    if (!c) return false;
+    const eKey = e.key === ' ' ? 'Space' : e.key;
+    return eKey.toLowerCase() === String(c.key).toLowerCase() &&
+      (e.ctrlKey || e.metaKey) === !!c.ctrl &&
+      e.shiftKey === !!c.shift &&
+      e.altKey === !!c.alt;
+  }
+
+  // ── Global shortcut dispatcher (undo / redo / delete / duplicate) ───────
+  document.addEventListener('keydown', e => {
+    if (recordingActionId) return; // being captured by the recorder above
+
+    // Always swallow the browser's own "bookmark this page" popup for
+    // whatever combo Duplicate is bound to (Ctrl+D by default), regardless
+    // of focus — we've repurposed it for an in-app action.
+    if (matchesShortcut(e, 'duplicate')) e.preventDefault();
+
+    const active = document.activeElement;
+    const tag = active && active.tagName;
+    const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || (active && active.isContentEditable);
+    if (isTyping) return; // never hijack normal typing/editing shortcuts
+
+    if (matchesShortcut(e, 'undo')) { e.preventDefault(); undo(); return; }
+    if (matchesShortcut(e, 'redo')) { e.preventDefault(); redo(); return; }
+    if (matchesShortcut(e, 'delete')) { e.preventDefault(); deleteSelectedBoxes(); return; }
+    if (matchesShortcut(e, 'duplicate')) { duplicateSelectedBox(); return; }
+  });
+
+  function deleteSelectedBoxes() {
+    if (multiSelectedIds.size > 0) {
+      Array.from(multiSelectedIds).forEach(id => removeBox(id));
+      clearMultiSelect();
+    } else if (selectedId !== null) {
+      removeBox(selectedId);
+    }
+  }
+
+  function duplicateSelectedBox() {
+    const sourceIds = multiSelectedIds.size > 0 ? Array.from(multiSelectedIds) : (selectedId !== null ? [selectedId] : []);
+    if (!sourceIds.length) { showAppAlert('Select a box first.'); return; }
+    const OFFSET = 16;
+    const newIds = [];
+    sourceIds.forEach(id => {
+      const src = boxes.find(b => b.id === id);
+      if (!src) return;
+      const nx = Math.max(0, Math.min(src.x + OFFSET, winW - src.w));
+      const ny = Math.max(0, Math.min(src.y + OFFSET, winH - src.h));
+      const copy = addBox(nx, ny, src.w, src.h, src.name + ' copy', src.shape, src.color, src.text);
+      newIds.push(copy.id);
+    });
+    if (!newIds.length) return;
+    if (newIds.length > 1) {
+      clearMultiSelect();
+      newIds.forEach(id => toggleMultiSelect(id));
+    }
+    selectBox(newIds[newIds.length - 1]);
+    showToast(newIds.length === 1 ? 'Box duplicated' : newIds.length + ' boxes duplicated');
+  }
+
+  // ── Undo / redo history ──────────────────────────────────────────────────
+  let historyStack = [];
+  let historyIndex = -1;
+  let suppressHistory = false;
+  const HISTORY_LIMIT = 60;
+
+  function snapshotState() {
+    return {
+      winW: document.getElementById('win-w').value,
+      winH: document.getElementById('win-h').value,
+      bg: document.getElementById('bg-color').value,
+      boxColor: document.getElementById('box-color').value,
+      originMode, boxMode, defaultShape, selectedId,
+      boxes: boxes.map(b => ({ name: b.name, shape: b.shape, color: b.color, x: b.x, y: b.y, w: b.w, h: b.h, id: b.id, text: b.text || '' }))
+    };
+  }
+
+  function pushHistory() {
+    if (suppressHistory || restoring) return;
+    historyStack = historyStack.slice(0, historyIndex + 1);
+    historyStack.push(JSON.stringify(snapshotState()));
+    if (historyStack.length > HISTORY_LIMIT) historyStack.shift();
+    historyIndex = historyStack.length - 1;
+    updateUndoRedoButtons();
+  }
+
+  function applySnapshot(snap) {
+    suppressHistory = true;
+    restoring = true;
+
+    boxes.slice().forEach(b => removeBoxInternal(b));
+    boxes = [];
+    boxListEl.innerHTML = '';
+    selectedId = null;
+    clearMultiSelect();
+
+    document.getElementById('bg-color').value = snap.bg ?? DEFAULTS.bg;
+    setCanvasBg(document.getElementById('bg-color').value);
+    document.getElementById('box-color').value = snap.boxColor ?? DEFAULTS.boxColor;
+    document.getElementById('win-w').value = snap.winW ?? DEFAULTS.winW;
+    document.getElementById('win-h').value = snap.winH ?? DEFAULTS.winH;
+    setDefaultShape(snap.defaultShape || 'rect');
+    setOrigin(snap.originMode || 'topleft');
+    setBoxMode(snap.boxMode === 'multiple' ? 'multiple' : 'single');
+    applyWindow();
+
+    let restoredSelected = null;
+    (snap.boxes || []).forEach(sb => {
+      const b = addBox(sb.x, sb.y, sb.w, sb.h, sb.name, sb.shape, sb.color, sb.text);
+      if (sb.text) b.textEl.textContent = sb.text;
+      if (sb.id === snap.selectedId) restoredSelected = b.id;
+    });
+    if (boxes.length) selectBox(restoredSelected || boxes[boxes.length - 1].id);
+    else hideCoordsUI();
+
+    restoring = false;
+    suppressHistory = false;
+    saveState();
+  }
+
+  function undo() {
+    if (historyIndex <= 0) return;
+    historyIndex--;
+    applySnapshot(JSON.parse(historyStack[historyIndex]));
+    updateUndoRedoButtons();
+  }
+
+  function redo() {
+    if (historyIndex >= historyStack.length - 1) return;
+    historyIndex++;
+    applySnapshot(JSON.parse(historyStack[historyIndex]));
+    updateUndoRedoButtons();
+  }
+
+  function updateUndoRedoButtons() {
+    const undoBtn = document.getElementById('undo-btn-mobile');
+    const redoBtn = document.getElementById('redo-btn-mobile');
+    if (undoBtn) undoBtn.disabled = historyIndex <= 0;
+    if (redoBtn) redoBtn.disabled = historyIndex >= historyStack.length - 1;
+  }
+
+  // ── Multi-select (Ctrl + right-click) ────────────────────────────────────
+  let multiSelectedIds = new Set();
+
+  function toggleMultiSelect(id) {
+    const box = boxes.find(b => b.id === id);
+    if (!box) return;
+    if (multiSelectedIds.has(id)) {
+      multiSelectedIds.delete(id);
+      box.el.classList.remove('multi-selected');
+    } else {
+      multiSelectedIds.add(id);
+      box.el.classList.add('multi-selected');
+    }
+    showToast(multiSelectedIds.size + (multiSelectedIds.size === 1 ? ' box selected' : ' boxes selected'));
+  }
+
+  function clearMultiSelect() {
+    multiSelectedIds.forEach(id => {
+      const box = boxes.find(b => b.id === id);
+      if (box) box.el.classList.remove('multi-selected');
+    });
+    multiSelectedIds.clear();
+  }
+
   // ── Deselect when clicking empty canvas ─────────────────────────────────
   function deselectBox() {
+    clearMultiSelect();
     if (selectedId === null) return;
     selectedId = null;
     boxes.forEach(b => {
@@ -1889,6 +2491,7 @@
       }
       hideGridGuides();
       saveState();
+      if (ai.type === 'resize' || (ai.type === 'drag' && ai.moved)) pushHistory();
     }
     activeInteraction = null;
   });
@@ -1924,6 +2527,12 @@
 
   // ── Right-click context menu on boxes ───────────────────────────────────
   function openCtxMenu(e, box) {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMultiSelect(box.id);
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     selectBox(box.id);
@@ -1976,6 +2585,7 @@
     renderBox(box);
     updateCoords();
     saveState();
+    pushHistory();
   }
 
   function ctxApplyColor() {
@@ -1985,6 +2595,7 @@
     updateShapeStyle(box);
     if (selectedId === box.id) selColorEl.value = box.color;
     saveState();
+    pushHistory();
   }
 
   function ctxSetShape(shape) {
@@ -1999,6 +2610,7 @@
     setBoxShape(box, shape);
     if (selectedId === box.id) { updateSelectedShapeUI(box); syncSizeInputsFromBox(box); }
     saveState();
+    pushHistory();
     closeCtxMenu();
   }
 
@@ -2039,12 +2651,15 @@
     boxes = [];
     boxIdCounter = 0;
     selectedId = null;
+    clearMultiSelect();
     boxListEl.innerHTML = '';
 
     document.getElementById('win-w').value = DEFAULTS.winW;
     document.getElementById('win-h').value = DEFAULTS.winH;
     document.getElementById('bg-color').value = DEFAULTS.bg;
     setCanvasBg(DEFAULTS.bg);
+    document.getElementById('page-bg-color').value = DEFAULTS.pageBg;
+    setPageBg(DEFAULTS.pageBg);
 
     document.getElementById('box-w').value = DEFAULTS.boxW;
     document.getElementById('box-h').value = DEFAULTS.boxH;
@@ -2057,6 +2672,9 @@
     applyWindow();
     updateBoxCountBadge();
     clearState();
+    historyStack = [];
+    historyIndex = -1;
+    pushHistory();
     showToast('Reset to defaults');
   }
 
@@ -2147,8 +2765,13 @@
   if (!restoreState()) {
     applyWindow();
     setCanvasBg(document.getElementById('bg-color').value);
+    setPageBg(document.getElementById('page-bg-color').value);
   }
   updateBoxCountBadge();
+  historyStack = [];
+  historyIndex = -1;
+  pushHistory();
+  updateUndoRedoButtons();
 </script>
 </body>
 </html>
